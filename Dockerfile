@@ -1,30 +1,44 @@
-# Use the official Go image to create a build artifact.
-FROM golang:latest AS builder
+# Stage 1: Build CSS with Node
+FROM node:23-alpine AS css-builder
+WORKDIR /build
+# Copy only the files needed for CSS build
+COPY package.json package-lock.json tailwind.config.js ./
+COPY static/css/input.css ./static/css/
+COPY templates/ ./templates/
+# Install dependencies and build CSS
+RUN npm ci && npm run build
 
-# Create and change to the app directory.
+# Stage 2: Go Application
+FROM golang:latest AS builder
 WORKDIR /app
 
-# Copy the go mod and sum files.
-COPY go.mod ./
-COPY go.sum ./
+# Install templ
+RUN go install github.com/a-h/templ/cmd/templ@latest
 
-# Download dependencies.
+# Copy go.mod and go.sum
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of your application code.
-COPY . ./
+# Copy the rest of the code
+COPY . .
 
-# Build the binary.
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -gcflags="all=-l -B" -v -o server
+# Copy the built CSS from the css-builder stage
+COPY --from=css-builder /build/static/css/output.css ./static/css/
 
-# Use the official Debian slim image for a lean production container.
-FROM debian:bookworm-slim
+# Generate templ files
+RUN templ generate
+
+# Build the application
+RUN go build -o main .
+
+# Final stage
+FROM alpine:latest
 WORKDIR /app
 
-RUN apt update && apt install -y ca-certificates && update-ca-certificates
+# Copy the binary from builder
+COPY --from=builder /app/main .
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/templates ./templates
 
-# Copy the binary to the production image from the builder stage.
-COPY --from=builder /app/server /app/server
-
-# Command to run the binary.
-CMD ["/app/server"]
+# Run the application
+ENTRYPOINT ["./main"]

@@ -1,13 +1,22 @@
-.PHONY: dev build run test clean
+.PHONY: dev build run test clean css generate
 
-dev:
+dev: generate css
 	air
 
-build:
+build: generate css
 	go build -o tmp/main .
 
-run:
+run: generate css
 	./tmp/main
+
+generate:
+	templ generate
+
+css:
+	npm run build
+
+css-watch:
+	npm run dev
 
 test:
 	go test ./...

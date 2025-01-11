@@ -1,27 +1,44 @@
 root = "."
+testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/main ."
-bin = "tmp/main"
-full_rebuild = true
-include_ext = ["go", "tpl", "tmpl", "html", "env"]
-exclude_dir = ["assets", "tmp", "vendor"]
-include_dir = []
+args_bin = []
+bin = "./tmp/main"
+cmd = "templ generate && go build -o ./tmp/main ."
+delay = 1000
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "node_modules"]
 exclude_file = []
-delay = 1000 # ms
-stop_on_error = true
+exclude_regex = ["_test.go", ".*_templ.go"]
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+include_dir = []
+include_ext = ["go", "tpl", "tmpl", "templ", "html", "css"]
+include_file = []
+kill_delay = "0s"
+log = "build-errors.log"
+poll = false
+poll_interval = 0
+rerun = false
+rerun_delay = 500
 send_interrupt = false
-kill_delay = 500 # ms
-
-[log]
-time = true
+stop_on_error = true
 
 [color]
-main = "magenta"
-watcher = "cyan"
+app = ""
 build = "yellow"
+main = "magenta"
 runner = "green"
+watcher = "cyan"
+
+[log]
+main_only = false
+time = false
 
 [misc]
-clean_on_exit = true
+clean_on_exit = false
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true

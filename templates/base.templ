@@ -1,0 +1,48 @@
+package templates
+
+templ Base(title string) {
+    <!DOCTYPE html>
+    <html lang="en" data-theme="dark">
+        <head>
+            <meta charset="UTF-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+            <title>{ title }</title>
+            <link href="/static/css/output.css" rel="stylesheet"/>
+            <script src="/static/js/htmx.min.js"></script>
+        </head>
+        <body class="bg-base-300 text-base-content min-h-screen flex flex-col">
+            <!-- Main content area -->
+            <div id="main-content" class="flex-grow bg-base-200">
+                { children... }
+            </div>
+
+            <!-- Error handling -->
+            <script>
+                document.body.addEventListener('htmx:responseError', function (evt) {
+                    const errorModal = evt.detail.xhr.response;
+                    document.body.insertAdjacentHTML('beforeend', errorModal);
+                });
+            </script>
+            <style>
+                .htmx-indicator {
+                    display: none;
+                }
+                .htmx-request .htmx-indicator {
+                    display: inline-flex;
+                }
+                .htmx-request .htmx-default {
+                    display: none;
+                }
+            </style>
+        </body>
+    </html>
+}
+
+// Example homepage component
+templ HomePage() {
+    @Base("Home Page") {
+        <div class="p-4">
+            <h1 class="text-2xl font-bold">Welcome to Snakey-Gooooo</h1>
+        </div>
+    }
+}

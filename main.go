@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"git.ssy.dk/noob/snakey-go/v2/models"
-	"git.ssy.dk/noob/snakey-go/v2/routes"
+	"git.ssy.dk/noob/snakey-go/models"
+	"git.ssy.dk/noob/snakey-go/routes"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

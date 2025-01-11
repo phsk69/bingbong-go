@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"git.ssy.dk/noob/snakey-go/v2/handlers"
+	"git.ssy.dk/noob/snakey-go/handlers"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -29,9 +29,14 @@ func NewRouter(db *gorm.DB) *Router {
 }
 
 func (r *Router) SetupRoutes() {
+	// Serve static files
+	r.engine.Static("/static", "./static")
+
+	// Homepage route
+	r.engine.GET("/", handlers.HomeHandler)
+
 	// Health check
 	r.engine.GET("/ping", handlers.PingHandler)
-
 	r.engine.GET("/healthz", handlers.HealthzHandler)
 
 	api := r.engine.Group("/api")
@@ -57,7 +62,6 @@ func (r *Router) SetupRoutes() {
 	}
 }
 
-// ServeHTTP implements the http.Handler interface
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.engine.ServeHTTP(w, req)
 }

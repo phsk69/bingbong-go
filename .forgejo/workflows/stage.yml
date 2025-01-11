@@ -57,6 +57,8 @@ jobs:
           echo "$KUBECONFIG" > /tmp/kubeconfig.yaml
           export KUBECONFIG=/tmp/kubeconfig.yaml
           
+          ./kubectl apply -f manifests/stage/base/config.yml
+          
           ./kubectl apply -f - <<EOF
           apiVersion: v1
           kind: Secret
@@ -72,7 +74,6 @@ jobs:
             REDIS_PASSWORD: "$REDIS_PASSWORD"
           EOF
           
-          ./kubectl apply -f manifests/stage/base/config.yml
           ./kubectl apply -f manifests/stage/network/services.yml
           ./kubectl apply -f manifests/stage/workloads/deployment.yml
           ./kubectl rollout restart deployment/$DEPLOYMENT_NAME -n $NAMESPACE

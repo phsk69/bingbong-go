@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"git.ssy.dk/noob/snakey-go/v2/models"
-	"git.ssy.dk/noob/snakey-go/v2/routes" // Updated import
+	"git.ssy.dk/noob/snakey-go/v2/routes"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -63,6 +63,12 @@ func setupDatabase(db *gorm.DB) error {
 		log.Printf("warning: failed to create extension: %v", err)
 	}
 
+	migrate := os.Getenv("DB_MIGRATE")
+	if migrate == "false" {
+		log.Println("Migrate is set to false, skipping database migration")
+		return nil
+	}
+
 	// Auto migrate all models
 	if err := db.AutoMigrate(
 		&models.User{},
@@ -90,15 +96,17 @@ func main() {
 	router := routes.NewRouter(db)
 	router.SetupRoutes()
 
+	server_port := os.Getenv("SERVER_PORT")
+
 	// Create server
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + server_port,
 		Handler: router,
 	}
 
 	// Start server in goroutine
 	go func() {
-		log.Println("Server starting on port 8080")
+		log.Printf("Server starting on port %s", server_port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}

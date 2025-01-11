@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stage-snakey-go
+  namespace: stage-snakey-go
+  labels:
+    app: stage-snakey-go
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stage-snakey-go
+  template:
+    metadata:
+      labels:
+        app: stage-snakey-go
+    spec:
+      containers:
+        - name: snakey-go
+          image: phsk69/snakey-go:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: snakey-go-config
+            - secretRef:
+                name: snakey-go-secret # The secret is handled in CI/CD
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      terminationGracePeriodSeconds: 30

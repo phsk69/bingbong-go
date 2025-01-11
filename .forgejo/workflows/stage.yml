@@ -1,0 +1,83 @@
+on: [push]
+
+jobs:
+  build:
+    runs-on: docker
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Login to Docker Hub
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      
+      - name: Build and push Docker image
+        env:
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/snakey-go
+          DOCKER_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $DOCKER_REPO:$DOCKER_TAG .
+          docker tag $DOCKER_REPO:$DOCKER_TAG $DOCKER_REPO:latest
+          docker push $DOCKER_REPO:$DOCKER_TAG
+          docker push $DOCKER_REPO:latest
+      
+      - name: Cleanup Docker credentials
+        if: always()
+        run: |
+          docker logout
+
+  deploy:
+    needs: build
+    runs-on: docker
+    container:
+      image: ubuntu:24.04
+      entrypoint: ["/bin/bash", "-c"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Get kubectl
+        run: |
+          wget https://dl.k8s.io/release/$(wget -qO- https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+          chmod +x kubectl
+      
+      - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+          NAMESPACE: stage-snakey-go
+          DEPLOYMENT_NAME: stage-snakey-go
+          DB_USR: ${{ secrets.STAGE_DB_USR }}
+          DB_PWD: ${{ secrets.STAGE_DB_PWD }}
+          SECRET_KEY: ${{ secrets.STAGE_SECRET_KEY }}
+          PASSWORD_PEPPER: ${{ secrets.STAGE_PASSWORD_PEPPER }}
+          REDIS_PASSWORD: ${{ secrets.STAGE_REDIS_PASSWORD }}
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/snakey-ui
+          DOCKER_TAG: ${{ github.sha }}
+        run: |
+          echo "$KUBECONFIG" > /tmp/kubeconfig.yaml
+          export KUBECONFIG=/tmp/kubeconfig.yaml
+          
+          ./kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: snakey-go-secret
+            namespace: stage-snakey-go
+          type: Opaque
+          stringData:
+            DB_USR: "$DB_USR"
+            DB_PWD: "$DB_PWD"
+            SECRET_KEY: "$SECRET_KEY"
+            PASSWORD_PEPPER: "$PASSWORD_PEPPER"
+            REDIS_PASSWORD: "$REDIS_PASSWORD"
+          EOF
+          
+          ./kubectl apply -f manifests/stage/base/config.yml
+          ./kubectl apply -f manifests/stage/network/services.yml
+          ./kubectl apply -f manifests/stage/workloads/deployment.yml
+          ./kubectl rollout restart deployment/$DEPLOYMENT_NAME -n $NAMESPACE
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f /tmp/kubeconfig.yaml kubectl

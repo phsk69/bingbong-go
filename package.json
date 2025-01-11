@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "build": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "dev": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch"
+  },
+  "dependencies": {
+    "daisyui": "latest",
+    "tailwindcss": "latest"
+  }
+}

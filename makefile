@@ -1,23 +1,27 @@
-.PHONY: dev build run test clean css generate deps css-watch
+.PHONY: dev build run test clean css generate deps css-watch install-templ
 
 # Development
-dev: deps generate css
+dev: deps install-templ generate css
 	air
 
 # Build
-build: deps generate css
+build: deps install-templ generate css
 	go build -o tmp/main .
 
 # Run
-run: deps generate css
+run: deps install-templ generate css
 	./tmp/main
 
 # Dependencies
 deps:
 	npm install
 
+# Install latest templ
+install-templ:
+	go install github.com/a-h/templ/cmd/templ@latest
+
 # Generate templ files
-generate:
+generate: install-templ
 	templ generate
 
 # CSS

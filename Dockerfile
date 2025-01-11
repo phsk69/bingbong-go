@@ -29,16 +29,16 @@ COPY --from=css-builder /build/static/css/output.css ./static/css/
 RUN templ generate
 
 # Build the application
-RUN go build -o main .
+RUN go build -o snakey .
 
 # Final stage
 FROM alpine:latest
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/main .
+COPY --from=builder /app/snakey .
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/templates ./templates
 
 # Run the application
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./snakey"]

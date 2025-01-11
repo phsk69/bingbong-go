@@ -32,6 +32,8 @@ func (r *Router) SetupRoutes() {
 	// Health check
 	r.engine.GET("/ping", handlers.PingHandler)
 
+	r.engine.GET("/healthz", handlers.HealthzHandler)
+
 	api := r.engine.Group("/api")
 	v1 := api.Group("/v1")
 	{

@@ -9,3 +9,9 @@ func PingHandler(c *gin.Context) {
 		"message": "pong",
 	})
 }
+
+func HealthzHandler(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"message": "pong",
+	})
+}

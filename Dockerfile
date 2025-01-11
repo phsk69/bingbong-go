@@ -41,4 +41,4 @@ COPY --from=builder /app/static ./static
 COPY --from=builder /app/templates ./templates
 
 # Run the application
-ENTRYPOINT ["./app/main"]
+ENTRYPOINT ["./main"]

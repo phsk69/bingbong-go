@@ -30,3 +30,5 @@ tmp/
 
 # node_modules
 node_modules/
+
+/templates/*.go

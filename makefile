@@ -1,26 +1,37 @@
-.PHONY: dev build run test clean css generate
+.PHONY: dev build run test clean css generate deps css-watch
 
-dev: generate css
+# Development
+dev: deps generate css
 	air
 
-build: generate css
+# Build
+build: deps generate css
 	go build -o tmp/main .
 
-run: generate css
+# Run
+run: deps generate css
 	./tmp/main
 
+# Dependencies
+deps:
+	npm install
+
+# Generate templ files
 generate:
 	templ generate
 
-css:
+# CSS
+css: deps
 	npm run build
 
-css-watch:
+css-watch: deps
 	npm run dev
 
+# Testing
 test:
 	go test ./...
 
+# Cleanup
 clean:
-	rm -rf tmp/
+	rm -rf tmp/ node_modules/
 	go clean

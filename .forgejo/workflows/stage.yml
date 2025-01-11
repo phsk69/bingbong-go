@@ -1,4 +1,21 @@
-on: [push]
+name: Build and Deploy
+
+on:
+  push:
+    paths:
+      - '**.go'
+      - '**.templ'
+      - '**.css'
+      - '**.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tailwind.config.js'
+      - 'Dockerfile'
+      - 'manifests/**'
+      - '.github/workflows/**'
+    branches:
+      - main
+      - develop
 
 jobs:
   build:
@@ -6,11 +23,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Login to Docker Hub
         run: |
           echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-      
+
       - name: Build and push Docker image
         env:
           DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/snakey-go
@@ -20,7 +37,7 @@ jobs:
           docker tag $DOCKER_REPO:$DOCKER_TAG $DOCKER_REPO:latest
           docker push $DOCKER_REPO:$DOCKER_TAG
           docker push $DOCKER_REPO:latest
-      
+
       - name: Cleanup Docker credentials
         if: always()
         run: |
@@ -35,12 +52,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Get kubectl
         run: |
           wget https://dl.k8s.io/release/$(wget -qO- https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
           chmod +x kubectl
-      
+
       - name: Deploy to Kubernetes
         env:
           KUBECONFIG: ${{ secrets.KUBECONFIG }}
@@ -56,9 +73,7 @@ jobs:
         run: |
           echo "$KUBECONFIG" > /tmp/kubeconfig.yaml
           export KUBECONFIG=/tmp/kubeconfig.yaml
-          
           ./kubectl apply -f manifests/stage/base/config.yml
-          
           ./kubectl apply -f - <<EOF
           apiVersion: v1
           kind: Secret
@@ -73,11 +88,10 @@ jobs:
             PASSWORD_PEPPER: "$PASSWORD_PEPPER"
             REDIS_PASSWORD: "$REDIS_PASSWORD"
           EOF
-          
           ./kubectl apply -f manifests/stage/network/services.yml
           ./kubectl apply -f manifests/stage/workloads/deployment.yml
           ./kubectl rollout restart deployment/$DEPLOYMENT_NAME -n $NAMESPACE
-      
+
       - name: Cleanup
         if: always()
         run: |

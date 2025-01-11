@@ -7,7 +7,10 @@ COPY package.json package-lock.json tailwind.config.js ./
 COPY static/css/input.css ./static/css/
 COPY templates/ ./templates/
 
-# Install dependencies and build CSS
+# Create js directory
+RUN mkdir -p ./static/js
+
+# Install dependencies and build CSS and JS
 RUN npm ci && npm run build
 
 # Stage 2: Go Application
@@ -24,8 +27,9 @@ RUN go mod download
 # Copy the rest of the code
 COPY . .
 
-# Copy the built CSS from the css-builder stage
+# Copy the built assets from css-builder stage
 COPY --from=css-builder /build/static/css/output.css ./static/css/
+COPY --from=css-builder /build/static/js/htmx.min.js ./static/js/
 
 # Generate templ files
 RUN templ generate
@@ -36,6 +40,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o snakey .
 # Final stage
 FROM alpine:latest
 WORKDIR /app
+
 # Add necessary libraries
 RUN apk --no-cache add ca-certificates
 

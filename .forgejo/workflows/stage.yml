@@ -67,8 +67,8 @@ jobs:
             namespace: stage-snakey-go
           type: Opaque
           stringData:
-            DB_USR: "$DB_USR"
-            DB_PWD: "$DB_PWD"
+            DB_USER: "$DB_USR"
+            DB_PASSWORD: "$DB_PWD"
             SECRET_KEY: "$SECRET_KEY"
             PASSWORD_PEPPER: "$PASSWORD_PEPPER"
             REDIS_PASSWORD: "$REDIS_PASSWORD"

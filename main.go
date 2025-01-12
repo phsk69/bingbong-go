@@ -23,11 +23,9 @@ func initRedis() (*handlers.DistributedHub, error) {
 	redisPort := os.Getenv("REDIS_PORT")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 
-	if redisHost == "" {
-		redisHost = "localhost"
-	}
-	if redisPort == "" {
-		redisPort = "6379"
+	// Validate if we have all the required environment variables
+	if redisHost == "" || redisPort == "" || redisPassword == "" {
+		return nil, fmt.Errorf("missing required environment variables for Redis")
 	}
 
 	redisConfig := handlers.HubConfig{

@@ -25,10 +25,14 @@ go.work.sum
 # env file
 .env
 
-# Temporary files
-tmp/
-
 # node_modules
 node_modules/
 
+# build files
 /templates/*.go
+tmp/
+static/css/output.css
+static/js/*.js
+
+# vscode
+.vscode/

@@ -13,10 +13,10 @@ spec:
       targetPort: 8080
       name: http
   type: ClusterIP
-  sessionAffinity: ClientIP  # Add session stickiness if needed in the future
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800  # 3 hours
+  # sessionAffinity: ClientIP  # Add session stickiness if needed in the future
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 10800  # 3 hours
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -24,9 +24,13 @@ metadata:
   name: stage-snakey-go-ingress
   namespace: stage-snakey-go
   annotations:
+    # nginx.ingress.kubernetes.io/session-cookie-path: "/"
     nginx.ingress.kubernetes.io/affinity: "cookie"
-    nginx.ingress.kubernetes.io/session-cookie-name: "snakey_go_session"
-    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "ROUTEID"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"  # Consistent hashing
 spec:
   ingressClassName: nginx
   rules:

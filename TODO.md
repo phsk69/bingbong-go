@@ -1,0 +1,1 @@
+- [ ] Get the websocket/redis hub available on /ws

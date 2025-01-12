@@ -32,8 +32,13 @@ func (r *Router) SetupRoutes() {
 	// Serve static files
 	r.engine.Static("/static", "./static")
 
+	r.engine.GET("/ws", handlers.HandleWebSocket)
+
 	// Homepage route
 	r.engine.GET("/", handlers.HomeHandler)
+
+	// WebSocket demo route
+	r.engine.GET("/demo", handlers.WebSocketDemoHandler)
 
 	// Health check
 	r.engine.GET("/ping", handlers.PingHandler)

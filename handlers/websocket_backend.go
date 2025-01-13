@@ -77,6 +77,9 @@ func NewDistributedHub(config HubConfig) (*DistributedHub, error) {
 		maxRetries: config.MaxRetries,
 	}
 
+	// log pod ID
+	log.Printf("Pod ID: %s", hub.podID)
+
 	// Test Redis connection
 	if err := hub.pingRedis(); err != nil {
 		cancel()

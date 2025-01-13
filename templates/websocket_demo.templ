@@ -68,9 +68,9 @@ templ WebSocketDemo() {
                 const input = document.getElementById("messageInput");
                 if (input.value) {
                     ws.send(input.value);
+                    console.log("Sent message", input.value);
                     input.value = "";
                 }
-                console.log("Sent message", input.value);
             }
             
             // Connect when the page loads

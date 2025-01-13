@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"git.ssy.dk/noob/snakey-go/handlers"
-	"git.ssy.dk/noob/snakey-go/models"
+	"git.ssy.dk/noob/snakey-go/migrations"
 	"git.ssy.dk/noob/snakey-go/routes"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -25,6 +25,7 @@ func initRedis() (*handlers.DistributedHub, error) {
 
 	// Validate if we have all the required environment variables
 	if redisHost == "" || redisPort == "" || redisPassword == "" {
+		log.Println("missing required environment variables for Redis")
 		return nil, fmt.Errorf("missing required environment variables for Redis")
 	}
 
@@ -97,17 +98,17 @@ func setupDatabase(db *gorm.DB) error {
 		return nil
 	}
 
-	// Auto migrate all models
-	if err := db.AutoMigrate(
-		&models.User{},
-		&models.UserGroup{},
-		&models.UserGroupInvite{},
-		&models.UserGroupMember{},
-		&models.AdminGroupMember{},
-		&models.GroupMessage{},
-		&models.Notification{},
-	); err != nil {
-		return fmt.Errorf("failed to migrate database: %v", err)
+	runner := migrations.NewRunner(db)
+	if err := runner.Run(); err != nil {
+		return fmt.Errorf("migration failed: %v", err)
+	}
+
+	// Optionally log migration status
+	migrations, err := runner.Status()
+	if err != nil {
+		log.Printf("Warning: couldn't fetch migration status: %v", err)
+	} else {
+		log.Printf("Applied %d migrations", len(migrations))
 	}
 
 	return nil

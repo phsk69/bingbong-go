@@ -70,6 +70,7 @@ templ WebSocketDemo() {
                     ws.send(input.value);
                     input.value = "";
                 }
+                console.log("Sent message", input.value);
             }
             
             // Connect when the page loads

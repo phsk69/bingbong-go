@@ -7,11 +7,14 @@ COPY package.json package-lock.json tailwind.config.js ./
 COPY static/css/input.css ./static/css/
 COPY templates/ ./templates/
 
-# Create js directory
-RUN mkdir -p ./static/js
+# Create necessary directories
+RUN mkdir -p ./static/js ./static/images
 
 # Install dependencies and build CSS and JS
 RUN npm ci && npm run build
+
+# Download htmx
+RUN wget -O ./static/js/htmx.min.js https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js
 
 # Stage 2: Go Application
 FROM golang:latest AS builder
@@ -44,10 +47,18 @@ WORKDIR /app
 # Add necessary libraries
 RUN apk --no-cache add ca-certificates
 
-# Copy the binary from builder
+# Create directory structure
+RUN mkdir -p /app/static/css \
+    /app/static/js \
+    /app/static/images \
+    /app/templates
+
+# Copy the binary and static assets
 COPY --from=builder /app/snakey .
-COPY --from=builder /app/static ./static
+COPY --from=builder /app/static/css/output.css ./static/css/
+COPY --from=builder /app/static/js/htmx.min.js ./static/js/
 COPY --from=builder /app/templates ./templates
+COPY --from=builder /app/static/images ./static/images/
 
 # Run the application
 ENTRYPOINT ["./snakey"]

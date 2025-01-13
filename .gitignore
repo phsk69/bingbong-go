@@ -36,3 +36,6 @@ static/js/*.js
 
 # vscode
 .vscode/
+
+# mac files
+.DS_Store

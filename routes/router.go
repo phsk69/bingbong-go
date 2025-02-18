@@ -1,10 +1,9 @@
-// routes/router.go
 package routes
 
 import (
 	"net/http"
 
-	"git.ssy.dk/noob/snakey-go/v2/handlers"
+	"git.ssy.dk/noob/bingbong-go/handlers"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -12,6 +11,7 @@ import (
 type Router struct {
 	db     *gorm.DB
 	engine *gin.Engine
+	wsHub  *handlers.DistributedHub
 }
 
 func NewRouter(db *gorm.DB) *Router {
@@ -29,9 +29,48 @@ func NewRouter(db *gorm.DB) *Router {
 	return router
 }
 
+// SetHub sets the WebSocket hub for the router
+func (r *Router) SetHub(hub *handlers.DistributedHub) {
+	r.wsHub = hub
+
+	// Add WebSocket hub middleware
+	r.engine.Use(func(c *gin.Context) {
+		c.Set("hub", r.wsHub)
+		c.Next()
+	})
+}
+
 func (r *Router) SetupRoutes() {
-	// Health check
+	// WebSocket routes
+	r.engine.GET("/ws", func(c *gin.Context) {
+		if r.wsHub != nil {
+			handlers.HandleWebSocket(c)
+		} else {
+			c.String(http.StatusServiceUnavailable, "WebSocket service not available")
+		}
+	})
+
+	r.engine.GET("/demo", handlers.WebSocketDemoHandler)
+
+	// Serve static files
+	r.engine.Static("/static", "./static")
+
+	// Homepage route
+	r.engine.GET("/", handlers.HomeHandler)
+
+	// Health check endpoints
 	r.engine.GET("/ping", handlers.PingHandler)
+	r.engine.GET("/healthz", func(c *gin.Context) {
+		// Enhanced health check that includes Redis status
+		if r.wsHub != nil && r.wsHub.IsHealthy() {
+			handlers.HealthzHandler(c)
+		} else {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":  "unhealthy",
+				"details": "WebSocket hub not available or unhealthy",
+			})
+		}
+	})
 
 	api := r.engine.Group("/api")
 	v1 := api.Group("/v1")
@@ -53,10 +92,25 @@ func (r *Router) SetupRoutes() {
 			groups.PUT("/:id", handlers.UpdateGroup)
 			groups.DELETE("/:id", handlers.DeleteGroup)
 		}
+
+		// WebSocket related APIs
+		websocket := v1.Group("/websocket")
+		{
+			websocket.GET("/stats", func(c *gin.Context) {
+				if r.wsHub != nil {
+					c.JSON(http.StatusOK, gin.H{
+						"connections": r.wsHub.GetStats(),
+					})
+				} else {
+					c.JSON(http.StatusServiceUnavailable, gin.H{
+						"error": "WebSocket service not available",
+					})
+				}
+			})
+		}
 	}
 }
 
-// ServeHTTP implements the http.Handler interface
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.engine.ServeHTTP(w, req)
 }

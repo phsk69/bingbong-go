@@ -1,0 +1,22 @@
+{
+    "cSpell.words": [
+        "beforeend",
+        "dylib",
+        "ROUTEID",
+        "Skov",
+        "upgrader"
+    ],
+    "cSpell.useGitignore": true,
+    "cSpell.ignorePaths": [
+        "package-lock.json",
+        "node_modules",
+        "vscode-extension",
+        ".git/{info,lfs,logs,refs,objects}/**",
+        ".git/{index,*refs,*HEAD}",
+        ".vscode",
+        ".vscode-insiders",
+        ".env",
+        "go.mod",
+        "go.sum"
+    ]
+}

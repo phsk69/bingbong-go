@@ -1,4 +1,3 @@
-// Description: This file contains the database models for the application. These models are used to define the database schema and relationships between tables. The models are defined using GORM tags to specify the column types, constraints, and relationships. The models also contain hooks to handle timestamps and other operations before creating or updating records.
 package models
 
 import (
@@ -8,30 +7,28 @@ import (
 	"gorm.io/gorm"
 )
 
-// User represents the user model
 type User struct {
 	ID        uint           `gorm:"primaryKey"`
 	Username  string         `gorm:"type:varchar(255);unique;not null"`
 	Email     string         `gorm:"type:varchar(255);unique;not null"`
-	Password  string         `gorm:"type:text;not null"` // Changed from password_hash for Go naming convention
+	Password  string         `gorm:"type:text;not null"`
 	PublicKey string         `gorm:"type:text"`
 	Active    bool           `gorm:"default:true"`
 	CreatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	LastLogin time.Time      `gorm:""`
-	DeletedAt gorm.DeletedAt `gorm:"index"` // Soft delete support
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	// Relationships
-	AdminAccess          []AdminGroupMember `gorm:"foreignKey:UserID"`
-	GroupMemberships     []UserGroupMember  `gorm:"foreignKey:UserID"`
-	GroupInvitesSent     []UserGroupInvite  `gorm:"foreignKey:InviteInitiatorID"`
-	GroupInvitesReceived []UserGroupInvite  `gorm:"foreignKey:InviteeID"`
-	CreatedGroups        []UserGroup        `gorm:"foreignKey:CreatedByID"`
-	SentMessages         []GroupMessage     `gorm:"foreignKey:SenderID"`
-	Notifications        []Notification     `gorm:"foreignKey:UserID"`
+	// Relationships with cascade delete
+	AdminAccess          []AdminGroupMember `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
+	GroupMemberships     []UserGroupMember  `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
+	GroupInvitesSent     []UserGroupInvite  `gorm:"foreignKey:InviteInitiatorID;constraint:OnDelete:CASCADE;"`
+	GroupInvitesReceived []UserGroupInvite  `gorm:"foreignKey:InviteeID;constraint:OnDelete:CASCADE;"`
+	CreatedGroups        []UserGroup        `gorm:"foreignKey:CreatedByID;constraint:OnDelete:CASCADE;"`
+	SentMessages         []GroupMessage     `gorm:"foreignKey:SenderID;constraint:OnDelete:CASCADE;"`
+	Notifications        []Notification     `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 }
 
-// UserGroup represents a group of users
 type UserGroup struct {
 	ID          uint           `gorm:"primaryKey"`
 	Name        string         `gorm:"type:varchar(255);not null"`
@@ -39,16 +36,15 @@ type UserGroup struct {
 	CreatedByID uint           `gorm:"not null"`
 	CreatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	DeletedAt   gorm.DeletedAt `gorm:"index"` // Soft delete support
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
 
-	// Relationships
+	// Relationships with cascade delete
 	Creator  User              `gorm:"foreignKey:CreatedByID"`
-	Members  []UserGroupMember `gorm:"foreignKey:GroupID"`
-	Invites  []UserGroupInvite `gorm:"foreignKey:GroupID"`
-	Messages []GroupMessage    `gorm:"foreignKey:GroupID"`
+	Members  []UserGroupMember `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE;"`
+	Invites  []UserGroupInvite `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE;"`
+	Messages []GroupMessage    `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE;"`
 }
 
-// UserGroupInvite represents an invitation to join a group
 type UserGroupInvite struct {
 	ID                uint      `gorm:"primaryKey"`
 	GroupID           uint      `gorm:"not null"`
@@ -64,7 +60,6 @@ type UserGroupInvite struct {
 	Invitee   User      `gorm:"foreignKey:InviteeID"`
 }
 
-// UserGroupMember represents a user's membership in a group
 type UserGroupMember struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint      `gorm:"not null"`
@@ -77,7 +72,6 @@ type UserGroupMember struct {
 	Group UserGroup `gorm:"foreignKey:GroupID"`
 }
 
-// AdminGroupMember represents an admin user
 type AdminGroupMember struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint      `gorm:"unique;not null"`
@@ -89,7 +83,6 @@ type AdminGroupMember struct {
 	User User `gorm:"foreignKey:UserID"`
 }
 
-// GroupMessage represents a message in a group
 type GroupMessage struct {
 	ID        uint           `gorm:"primaryKey"`
 	GroupID   uint           `gorm:"not null"`
@@ -97,14 +90,28 @@ type GroupMessage struct {
 	Content   string         `gorm:"type:text;not null"`
 	CreatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	DeletedAt gorm.DeletedAt `gorm:"index"` // Soft delete support
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	// Relationships
 	Group  UserGroup `gorm:"foreignKey:GroupID"`
 	Sender User      `gorm:"foreignKey:SenderID"`
 }
 
-// ToDict converts a GroupMessage to a map for JSON serialization
+type Notification struct {
+	ID        uint           `gorm:"primaryKey"`
+	UserID    uint           `gorm:"not null"`
+	Type      string         `gorm:"type:varchar(50);not null"`
+	Content   string         `gorm:"type:jsonb;not null"`
+	Read      bool           `gorm:"default:false;not null"`
+	CreatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
+	UpdatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+
+	// Relationship
+	User User `gorm:"foreignKey:UserID"`
+}
+
+// Methods remain unchanged
 func (m *GroupMessage) ToDict() map[string]interface{} {
 	return map[string]interface{}{
 		"id":              m.ID,
@@ -117,22 +124,6 @@ func (m *GroupMessage) ToDict() map[string]interface{} {
 	}
 }
 
-// Notification represents a user notification
-type Notification struct {
-	ID        uint           `gorm:"primaryKey"`
-	UserID    uint           `gorm:"not null"`
-	Type      string         `gorm:"type:varchar(50);not null"`
-	Content   string         `gorm:"type:jsonb;not null"` // Using JSONB for PostgreSQL
-	Read      bool           `gorm:"default:false;not null"`
-	CreatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	DeletedAt gorm.DeletedAt `gorm:"index"` // Soft delete support
-
-	// Relationship
-	User User `gorm:"foreignKey:UserID"`
-}
-
-// ToDict converts a Notification to a map for JSON serialization
 func (n *Notification) ToDict() map[string]interface{} {
 	var content interface{}
 	_ = json.Unmarshal([]byte(n.Content), &content)
@@ -148,14 +139,12 @@ func (n *Notification) ToDict() map[string]interface{} {
 	}
 }
 
-// BeforeCreate hook to handle timestamps
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	u.CreatedAt = time.Now()
 	u.UpdatedAt = time.Now()
 	return nil
 }
 
-// BeforeUpdate hook to handle timestamps
 func (u *User) BeforeUpdate(tx *gorm.DB) error {
 	u.UpdatedAt = time.Now()
 	return nil

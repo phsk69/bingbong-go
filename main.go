@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,95 +9,57 @@ import (
 	"syscall"
 	"time"
 
-	"git.ssy.dk/noob/snakey-go/v2/models"
-	"git.ssy.dk/noob/snakey-go/v2/routes" // Updated import
+	"git.ssy.dk/noob/bingbong-go/db"
+	"git.ssy.dk/noob/bingbong-go/redis"
+	"git.ssy.dk/noob/bingbong-go/routes"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
-func initDB() (*gorm.DB, error) {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found, using environment variables.")
+func setupServer(router http.Handler, port string) *http.Server {
+	return &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
 	}
-
-	// Read environment variables
-	host := os.Getenv("DB_HOST")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-	port := os.Getenv("DB_PORT")
-	sslmode := os.Getenv("DB_SSLMODE")
-
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s sslmode=%s password=%s port=%s",
-		host, user, dbname, sslmode, password, port)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database: %v", err)
-	}
-
-	// Configure connection pool
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Minute * 5)
-
-	// Setup extensions and migrations
-	if err := setupDatabase(db); err != nil {
-		return nil, err
-	}
-
-	return db, nil
 }
 
-func setupDatabase(db *gorm.DB) error {
-	// Ensure UUID extension exists
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error; err != nil {
-		log.Printf("warning: failed to create extension: %v", err)
+func getServerPort() string {
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080" // Default port if not specified
 	}
-
-	// Auto migrate all models
-	if err := db.AutoMigrate(
-		&models.User{},
-		&models.UserGroup{},
-		&models.UserGroupInvite{},
-		&models.UserGroupMember{},
-		&models.AdminGroupMember{},
-		&models.GroupMessage{},
-		&models.Notification{},
-	); err != nil {
-		return fmt.Errorf("failed to migrate database: %v", err)
-	}
-
-	return nil
+	return port
 }
 
 func main() {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables.")
+	}
+
 	// Initialize DB
-	db, err := initDB()
+	database, err := db.InitDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
+	// Initialize Redis and WebSocket hub
+	hub, err := redis.InitRedis()
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis: %v", err)
+	}
+
 	// Initialize router with routes
-	router := routes.NewRouter(db)
+	router := routes.NewRouter(database.GetDB()) // Use GetDB() to get *gorm.DB
+	router.SetHub(hub)
 	router.SetupRoutes()
 
-	// Create server
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: router,
-	}
+	// Setup HTTP server
+	server_port := getServerPort()
+	srv := setupServer(router, server_port)
 
 	// Start server in goroutine
 	go func() {
-		log.Println("Server starting on port 8080")
+		log.Printf("Server starting on port %s", server_port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
@@ -114,13 +75,21 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Attempt to shut down the server
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
 
 	// Close DB connection
-	if sqlDB, err := db.DB(); err == nil {
+	if sqlDB, err := database.GetSQLDB(); err == nil {
+		log.Println("Closing database connection...")
 		sqlDB.Close()
+	}
+
+	// Stop Redis hub
+	if hub != nil {
+		hub.Stop()
+		log.Println("Redis hub stopped")
 	}
 
 	log.Println("Server exiting")

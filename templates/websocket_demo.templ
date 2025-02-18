@@ -1,0 +1,88 @@
+package templates
+
+templ WebSocketDemo() {
+	@Base("WebSocket Demo") {
+		<div class="flex flex-col items-center justify-center min-h-screen bg-base-300 p-4">
+			<div class="w-full max-w-md space-y-4">
+				<div class="bg-base-100 rounded-lg shadow-lg p-6">
+					<h2 class="text-xl font-bold mb-4">WebSocket Demo</h2>
+					<!-- Input form -->
+					<div class="form-control">
+						<div class="input-group">
+							<input
+								type="text"
+								id="messageInput"
+								class="input input-bordered w-full"
+								placeholder="Type your message..."
+							/>
+							<button
+								class="btn btn-primary"
+								onclick="sendMessage()"
+							>
+								Send
+							</button>
+						</div>
+					</div>
+					<!-- Messages display -->
+					<div class="mt-4">
+						<h3 class="text-lg font-semibold mb-2">Messages:</h3>
+						<div
+							id="messages"
+							class="bg-base-200 p-4 rounded-lg min-h-[200px] max-h-[400px] overflow-y-auto"
+						></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+            let ws;
+            
+            function connect() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                
+                ws.onopen = function() {
+                    console.log("Connected to websocket");
+                };
+                
+                ws.onerror = function(error) {
+                    console.error("WebSocket error:", error);
+                };
+                
+                ws.onmessage = function(evt) {
+                    const messagesDiv = document.getElementById("messages");
+                    const messageElement = document.createElement("div");
+                    messageElement.className = "mb-2 p-2 bg-base-300 rounded";
+                    messageElement.textContent = evt.data;
+                    messagesDiv.appendChild(messageElement);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                };
+                
+                ws.onclose = function() {
+                    console.log("Disconnected from websocket");
+                    // Attempt to reconnect after 1 second
+                    setTimeout(connect, 1000);
+                };
+            }
+            
+            function sendMessage() {
+                const input = document.getElementById("messageInput");
+                if (input.value) {
+                    ws.send(input.value);
+                    console.log("Sent message", input.value);
+                    input.value = "";
+                }
+            }
+            
+            // Connect when the page loads
+            connect();
+            
+            // Allow sending with Enter key
+            document.getElementById("messageInput").addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    sendMessage();
+                }
+            });
+        </script>
+	}
+}

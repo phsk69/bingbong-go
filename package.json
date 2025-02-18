@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "build:js": "mkdir -p ./static/js && cp node_modules/htmx.org/dist/htmx.min.js ./static/js/",
+    "build:production": "NODE_ENV=production npm run build",
+    "dev": "concurrently \"npm run dev:css\" \"npm run dev:js\"",
+    "dev:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "dev:js": "mkdir -p ./static/js && cp node_modules/htmx.org/dist/htmx.min.js ./static/js/"
+  },
+  "dependencies": {
+    "daisyui": "latest",
+    "htmx.org": "^2",
+    "tailwindcss": "latest"
+  },
+  "devDependencies": {
+    "concurrently": "latest"
+  }
+}

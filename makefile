@@ -1,4 +1,4 @@
-.PHONY: dev build run test clean css generate deps css-watch install-templ build-darwin build-linux build-all bundle-static prepare-build
+.PHONY: dev build run test clean css generate deps css-watch install-templ build-darwin build-linux build-all bundle-static prepare-build docker-build docker-push release
 
 # Build variables
 BINARY_NAME=bingbong
@@ -7,7 +7,9 @@ BUILD_DIR=build
 BUNDLE_DIR=${BUILD_DIR}/bundle
 LDFLAGS=-ldflags "-X main.Version=${VERSION}"
 
-all: build-all
+all: docker-push
+
+release: build-all
 
 # Development
 dev: deps install-templ generate css
@@ -80,3 +82,10 @@ clean:
 	rm -rf tmp/ node_modules/ ${BUILD_DIR}/
 	rm -rf static/js/*.js static/css/output.css
 	go clean
+
+docker-build:
+	docker buildx create --use
+	docker buildx build --platform linux/amd64,linux/arm64 -t bingbong-go --push .
+
+docker-push:
+	docker buildx build --platform linux/amd64,linux/arm64 -t phsk69/bingbong-go:latest --push .

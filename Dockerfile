@@ -1,21 +1,20 @@
 # Stage 1: Build CSS with Node
-FROM node:23-alpine AS css-builder
+FROM --platform=$BUILDPLATFORM node:23-alpine AS css-builder
 WORKDIR /build
-
 # Copy only the files needed for CSS build
 COPY package.json package-lock.json tailwind.config.js ./
 COPY static/css/input.css ./static/css/
 COPY templates/ ./templates/
-
 # Create necessary directories
 RUN mkdir -p ./static/js ./static/images
-
 # Install dependencies and build CSS and JS
 RUN npm ci && npm run build:production
 
 # Stage 2: Go Application
-FROM golang:latest AS builder
+FROM --platform=$BUILDPLATFORM golang:latest AS builder
 WORKDIR /app
+ARG TARGETARCH
+ARG TARGETOS
 
 # Install templ
 RUN go install github.com/a-h/templ/cmd/templ@latest
@@ -34,8 +33,8 @@ COPY --from=css-builder /build/static/js/htmx.min.js ./static/js/
 # Generate templ files
 RUN templ generate
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server .
+# Build the application with architecture-specific settings
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -installsuffix cgo -o server .
 
 # Final stage
 FROM alpine:latest

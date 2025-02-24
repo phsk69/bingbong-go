@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// WebSocketDemoHandler renders the WebSocket demo page
-func WebSocketDemoHandler(c *gin.Context) {
+// HomeHandler renders the homepage
+func HomeHandler(c *gin.Context) {
 	// Get timing from context
 	timingValue, exists := c.Get("timing")
 	var t *timing.RenderTiming
@@ -21,7 +21,7 @@ func WebSocketDemoHandler(c *gin.Context) {
 	}
 
 	// Create the template component
-	component := templates.WebSocketDemo(t)
+	component := templates.HomePage(t)
 
 	// Set proper content type
 	c.Header("Content-Type", "text/html; charset=utf-8")

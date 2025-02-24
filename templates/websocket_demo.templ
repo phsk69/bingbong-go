@@ -1,41 +1,56 @@
 package templates
 
-templ WebSocketDemo() {
-	@Base("WebSocket Demo") {
-		<div class="flex flex-col items-center justify-center min-h-screen bg-base-300 p-4">
-			<div class="w-full max-w-md space-y-4">
-				<div class="bg-base-100 rounded-lg shadow-lg p-6">
-					<h2 class="text-xl font-bold mb-4">WebSocket Demo</h2>
-					<!-- Input form -->
-					<div class="form-control">
-						<div class="input-group">
-							<input
-								type="text"
-								id="messageInput"
-								class="input input-bordered w-full"
-								placeholder="Type your message..."
-							/>
-							<button
-								class="btn btn-primary"
-								onclick="sendMessage()"
-							>
-								Send
-							</button>
-						</div>
-					</div>
-					<!-- Messages display -->
-					<div class="mt-4">
-						<h3 class="text-lg font-semibold mb-2">Messages:</h3>
-						<div
-							id="messages"
-							class="bg-base-200 p-4 rounded-lg min-h-[200px] max-h-[400px] overflow-y-auto"
-						></div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<script>
+import (
+    "git.ssy.dk/noob/bingbong-go/timing"
+)
+
+// WebSocketDemo renders the WebSocket demo page
+templ WebSocketDemo(t *timing.RenderTiming) {
+    @Base("WebSocket Demo", t) {
+        <div class="flex flex-col items-center justify-center px-4 py-8">
+            <div class="w-full max-w-2xl mx-auto">
+                <div class="bg-base-200 rounded-lg shadow-lg p-6">
+                    <h1 class="text-3xl font-bold mb-6 text-center text-primary">WebSocket Demo</h1>
+                    <p class="mb-6 text-center">
+                        This demo showcases real-time bidirectional communication with the server.
+                    </p>
+                    
+                    <!-- Input form -->
+                    <div class="form-control mb-6">
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="messageInput"
+                                class="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Type your message..."
+                            />
+                            <button
+                                class="btn btn-primary"
+                                onclick="sendMessage()"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages display -->
+                    <div>
+                        <h2 class="text-xl font-semibold mb-3">Messages:</h2>
+                        <div
+                            id="messages"
+                            class="bg-base-100 p-4 rounded-lg min-h-[250px] max-h-[400px] overflow-y-auto border border-base-300"
+                        ></div>
+                        <div class="mt-4 text-sm text-base-content/70">
+                            <p>Connection status: <span id="connectionStatus" class="font-medium">Connecting...</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
             let ws;
+            const connectionStatus = document.getElementById("connectionStatus");
             
             function connect() {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -43,16 +58,20 @@ templ WebSocketDemo() {
                 
                 ws.onopen = function() {
                     console.log("Connected to websocket");
+                    connectionStatus.textContent = "Connected";
+                    connectionStatus.className = "font-medium text-success";
                 };
                 
                 ws.onerror = function(error) {
                     console.error("WebSocket error:", error);
+                    connectionStatus.textContent = "Error";
+                    connectionStatus.className = "font-medium text-error";
                 };
                 
                 ws.onmessage = function(evt) {
                     const messagesDiv = document.getElementById("messages");
                     const messageElement = document.createElement("div");
-                    messageElement.className = "mb-2 p-2 bg-base-300 rounded";
+                    messageElement.className = "mb-2 p-3 bg-base-200 rounded-md";
                     messageElement.textContent = evt.data;
                     messagesDiv.appendChild(messageElement);
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -60,6 +79,8 @@ templ WebSocketDemo() {
                 
                 ws.onclose = function() {
                     console.log("Disconnected from websocket");
+                    connectionStatus.textContent = "Disconnected, reconnecting...";
+                    connectionStatus.className = "font-medium text-warning";
                     // Attempt to reconnect after 1 second
                     setTimeout(connect, 1000);
                 };
@@ -69,7 +90,16 @@ templ WebSocketDemo() {
                 const input = document.getElementById("messageInput");
                 if (input.value) {
                     ws.send(input.value);
-                    console.log("Sent message", input.value);
+                    
+                    // Add our own message to the list with a different style
+                    const messagesDiv = document.getElementById("messages");
+                    const messageElement = document.createElement("div");
+                    messageElement.className = "mb-2 p-3 bg-primary/10 rounded-md text-right";
+                    messageElement.textContent = `You: ${input.value}`;
+                    messagesDiv.appendChild(messageElement);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    
+                    // Clear input
                     input.value = "";
                 }
             }
@@ -84,5 +114,5 @@ templ WebSocketDemo() {
                 }
             });
         </script>
-	}
+    }
 }

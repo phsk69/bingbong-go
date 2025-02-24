@@ -18,5 +18,6 @@
         ".env",
         "go.mod",
         "go.sum"
-    ]
+    ],
+    "cSpell.allowCompoundWords": true,
 }

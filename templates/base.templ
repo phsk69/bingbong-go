@@ -1,56 +1,59 @@
 package templates
 
-templ Base(title string) {
-    <!DOCTYPE html>
-    <html lang="en" data-theme="dark">
-        <head>
-            <meta charset="UTF-8"/>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-            <title>{ title }</title>
-            
-            <!-- Favicon configuration -->
-            <link rel="apple-touch-icon" sizes="180x180" href="/static/images/favicon/apple-touch-icon.png"/>
-            <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/favicon-32x32.png"/>
-            <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/favicon-16x16.png"/>
-            <link rel="manifest" href="/static/images/favicon/site.webmanifest"/>
-            
-            <!-- Stylesheet and JavaScript -->
-            <link href="/static/css/output.css" rel="stylesheet"/>
-            <script src="/static/js/htmx.min.js"></script>
-        </head>
-        <body class="bg-base-300 text-base-content min-h-screen flex flex-col">
-            <!-- Main content area -->
-            <div id="main-content" class="flex-grow bg-base-200">
-                { children... }
-            </div>
+import "git.ssy.dk/noob/bingbong-go/timing"
 
-            <!-- Error handling -->
-            <script>
-                document.body.addEventListener('htmx:responseError', function (evt) {
-                    const errorModal = evt.detail.xhr.response;
-                    document.body.insertAdjacentHTML('beforeend', errorModal);
-                });
-            </script>
-            <style>
-                .htmx-indicator {
-                    display: none;
-                }
-                .htmx-request .htmx-indicator {
-                    display: inline-flex;
-                }
-                .htmx-request .htmx-default {
-                    display: none;
-                }
-            </style>
-        </body>
-    </html>
-}
-
-// Example homepage component
-templ HomePage() {
-    @Base("Home Page") {
-        <div class="p-4">
-            <h1 class="text-2xl font-bold">Welcome to bingbong-go</h1>
-        </div>
-    }
+// Base template that all pages should use with a slim footer
+templ Base(title string, t *timing.RenderTiming) {
+	<!DOCTYPE html>
+	<html lang="en" class="h-full">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } - bingbong-go</title>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<link rel="icon" href="/static/images/favicon/favicon.ico"/>
+			<script src="/static/js/htmx.min.js"></script>
+			<style>
+/* Ensure the body fills the entire viewport height */
+html, body {
+height: 100%;
+margin: 0;
+ }
+/* Create a wrapper that allows for proper footer positioning */
+.site-wrapper {
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+ }
+/* Push the footer to the bottom */
+.site-content {
+flex: 1 0 auto;
+ }
+/* Prevent footer from being pushed off-screen and make it slim */
+.site-footer {
+flex-shrink: 0;
+padding: 0.5rem;
+ }
+</style>
+		</head>
+		<body class="bg-base-100 text-base-content">
+			<div class="site-wrapper">
+				<nav class="navbar bg-base-200">
+					<div class="flex-1">
+						<a href="/" class="btn btn-ghost text-xl">bingbong-go</a>
+					</div>
+					<div class="flex-none">
+						<ul class="menu menu-horizontal px-1">
+							<li><a href="/demo">WebSocket Demo</a></li>
+						</ul>
+					</div>
+				</nav>
+				<main class="site-content container mx-auto py-4">
+					{ children... }
+				</main>
+				<!-- Footer placeholder - will be replaced by timing injector -->
+				<footer class="footer footer-center p-4 bg-base-200 text-base-content"></footer>
+			</div>
+		</body>
+	</html>
 }

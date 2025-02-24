@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"git.ssy.dk/noob/bingbong-go/handlers"
+	"git.ssy.dk/noob/bingbong-go/middleware"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -26,13 +27,15 @@ func NewRouter(db *gorm.DB) *Router {
 		c.Next()
 	})
 
+	// Add timing middleware
+	router.engine.Use(middleware.TimingMiddleware())
+
 	return router
 }
 
 // SetHub sets the WebSocket hub for the router
 func (r *Router) SetHub(hub *handlers.DistributedHub) {
 	r.wsHub = hub
-
 	// Add WebSocket hub middleware
 	r.engine.Use(func(c *gin.Context) {
 		c.Set("hub", r.wsHub)
@@ -41,6 +44,10 @@ func (r *Router) SetHub(hub *handlers.DistributedHub) {
 }
 
 func (r *Router) SetupRoutes() {
+	// Authentication routes
+	r.engine.GET("/login", handlers.LoginPageHandler)
+	r.engine.GET("/logout", handlers.LogoutHandler)
+
 	// WebSocket routes
 	r.engine.GET("/ws", func(c *gin.Context) {
 		if r.wsHub != nil {
@@ -49,7 +56,6 @@ func (r *Router) SetupRoutes() {
 			c.String(http.StatusServiceUnavailable, "WebSocket service not available")
 		}
 	})
-
 	r.engine.GET("/demo", handlers.WebSocketDemoHandler)
 
 	// Serve static files
@@ -72,9 +78,17 @@ func (r *Router) SetupRoutes() {
 		}
 	})
 
+	// API routes
 	api := r.engine.Group("/api")
 	v1 := api.Group("/v1")
 	{
+		// Auth API endpoints
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", handlers.LoginHandler)
+		}
+
+		// Public API endpoints
 		users := v1.Group("/users")
 		{
 			users.POST("/", handlers.CreateUser)
@@ -93,6 +107,24 @@ func (r *Router) SetupRoutes() {
 			groups.DELETE("/:id", handlers.DeleteGroup)
 		}
 
+		// Protected admin API endpoints
+		admin := v1.Group("/admin")
+		admin.Use(middleware.AuthMiddleware(), middleware.AdminAuthMiddleware())
+		{
+			// Admin user management
+			adminUsers := admin.Group("/users")
+			{
+				adminUsers.GET("/", handlers.AdminGetUsersHandler)
+				adminUsers.GET("/new", handlers.AdminGetUserFormHandler)
+				adminUsers.GET("/:id/edit", handlers.AdminGetUserEditFormHandler)
+				adminUsers.POST("/", handlers.AdminCreateUserHandler)
+				adminUsers.PUT("/:id", handlers.AdminUpdateUserHandler)
+				adminUsers.DELETE("/:id", handlers.AdminDeleteUserHandler)
+			}
+
+			// Admin group management could be added similarly here
+		}
+
 		// WebSocket related APIs
 		websocket := v1.Group("/websocket")
 		{
@@ -108,6 +140,14 @@ func (r *Router) SetupRoutes() {
 				}
 			})
 		}
+	}
+
+	// Admin routes - protected and rendered pages
+	adminRoutes := r.engine.Group("/admin")
+	adminRoutes.Use(middleware.AuthMiddleware(), middleware.AdminAuthMiddleware())
+	{
+		adminRoutes.GET("/", handlers.AdminDashboardHandler) // Renders the admin dashboard
+		// Add more admin UI routes here as needed
 	}
 }
 

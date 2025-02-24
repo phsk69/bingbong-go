@@ -1,0 +1,28 @@
+[Unit]
+Description=BingBong Go Docker Container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+RestartSec=10
+User=bingbong-go
+Group=bingbong-go
+EnvironmentFile=/etc/bingbong-go/.env
+
+# Add the user to the docker group in the Makefile instead of here
+ExecStartPre=-/usr/bin/docker stop bingbong-go
+ExecStartPre=-/usr/bin/docker rm bingbong-go
+ExecStartPre=/usr/bin/docker pull phsk69/bingbong-go:latest
+ExecStart=/usr/bin/docker run \
+    --name bingbong-go \
+    --env-file /etc/bingbong-go/.env \
+    --network host \
+    phsk69/bingbong-go:latest
+
+ExecStop=/usr/bin/docker stop bingbong-go
+
+[Install]
+WantedBy=multi-user.target

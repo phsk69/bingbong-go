@@ -1,0 +1,40 @@
+package templates
+
+import (
+    "git.ssy.dk/noob/bingbong-go/timing"
+)
+
+// HomePage renders an elegant home page
+templ HomePage(t *timing.RenderTiming) {
+    @Base("Home", t) {
+        <div class="flex flex-col items-center justify-center min-h-[60vh] px-4">
+            <div class="text-center max-w-2xl mx-auto">
+                <h1 class="text-4xl font-bold mb-6 text-primary">Welcome to bingbong-go</h1>
+                <p class="text-xl mb-8 text-base-content/80">
+                    A modern, high-performance web application framework built with Go
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                    <div class="bg-base-200 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-xl font-semibold mb-3">Fast & Efficient</h2>
+                        <p>Built on Go's concurrency model with lightweight handling of requests and responses.</p>
+                    </div>
+                    <div class="bg-base-200 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-xl font-semibold mb-3">WebSocket Support</h2>
+                        <p>Real-time bidirectional communication with clients through a simple, clean API.</p>
+                    </div>
+                    <div class="bg-base-200 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-xl font-semibold mb-3">Templating</h2>
+                        <p>Type-safe templating with Go's templ package for robust server-side rendering.</p>
+                    </div>
+                    <div class="bg-base-200 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-xl font-semibold mb-3">HTMX Integration</h2>
+                        <p>Seamless interaction with frontend using HTMX for modern web experiences.</p>
+                    </div>
+                </div>
+                <div class="mt-10">
+                    <a href="/demo" class="btn btn-primary">Try WebSocket Demo</a>
+                </div>
+            </div>
+        </div>
+    }
+}

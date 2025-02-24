@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"git.ssy.dk/noob/bingbong-go/handlers"
+	"git.ssy.dk/noob/bingbong-go/middleware"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -26,13 +27,15 @@ func NewRouter(db *gorm.DB) *Router {
 		c.Next()
 	})
 
+	// Add timing middleware
+	router.engine.Use(middleware.TimingMiddleware())
+
 	return router
 }
 
 // SetHub sets the WebSocket hub for the router
 func (r *Router) SetHub(hub *handlers.DistributedHub) {
 	r.wsHub = hub
-
 	// Add WebSocket hub middleware
 	r.engine.Use(func(c *gin.Context) {
 		c.Set("hub", r.wsHub)
@@ -49,7 +52,6 @@ func (r *Router) SetupRoutes() {
 			c.String(http.StatusServiceUnavailable, "WebSocket service not available")
 		}
 	})
-
 	r.engine.GET("/demo", handlers.WebSocketDemoHandler)
 
 	// Serve static files

@@ -1,0 +1,87 @@
+package templates
+
+import "git.ssy.dk/noob/bingbong-go/timing"
+
+templ Login(t *timing.RenderTiming, redirect string) {
+	@Base("Login", t) {
+		<div class="flex items-center justify-center min-h-[60vh]">
+			<div class="card w-96 bg-base-200 shadow-xl">
+				<div class="card-body">
+					<h2 class="card-title text-2xl font-bold mb-4">Login</h2>
+					<form
+						if redirect == "" {
+							hx-post="/api/v1/auth/login"
+						} else {
+							hx-post={ "/api/v1/auth/login?redirect=" + redirect }
+						}
+						hx-swap="none"
+						hx-trigger="submit"
+						id="login-form"
+						class="space-y-4"
+						data-redirect={ redirect }
+					>
+						<div class="form-control w-full">
+							<label class="label">
+								<span class="label-text">Username</span>
+							</label>
+							<input
+								type="text"
+								name="username"
+								placeholder="Username"
+								class="input input-bordered w-full"
+								required
+							/>
+						</div>
+						<div class="form-control w-full">
+							<label class="label">
+								<span class="label-text">Password</span>
+							</label>
+							<input
+								type="password"
+								name="password"
+								placeholder="Password"
+								class="input input-bordered w-full"
+								required
+							/>
+						</div>
+						<div id="login-error" class="text-error hidden">
+							Invalid username or password
+						</div>
+						<div class="form-control mt-6">
+							<button type="submit" class="btn btn-primary w-full">
+								Login
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+		<script>
+			document.body.addEventListener('htmx:afterRequest', function(event) {
+			if (event.detail.target.id === 'login-form') {
+			if (event.detail.xhr.status === 200) {
+			// Store the token in localStorage
+			const response = JSON.parse(event.detail.xhr.responseText);
+			localStorage.setItem('authToken', response.token);
+			
+			// Check if redirect URL is in the response
+			if (response.redirect) {
+			    window.location.href = response.redirect;
+			} else {
+			    const formRedirect = event.detail.target.getAttribute('data-redirect');
+			    if (formRedirect && formRedirect !== '') {
+			        window.location.href = formRedirect;
+			    } else {
+			        // Default to home
+			        window.location.href = '/';
+			    }
+			}
+			} else {
+			// Show error message
+			document.getElementById('login-error').classList.remove('hidden');
+			}
+			}
+			});
+		</script>
+	}
+}

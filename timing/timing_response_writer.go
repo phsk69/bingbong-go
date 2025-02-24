@@ -70,9 +70,10 @@ func (w *TimingResponseWriter) Flush() {
 	// Get the HTML content
 	html := w.buffer.String()
 
-	// Check if the timing info is already present
-	if strings.Contains(html, "Page:") && strings.Contains(html, "Template:") {
-		// Timing is already present, just write the original HTML
+	// Check for content type
+	contentType := w.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		// Not HTML content, write as-is
 		if !w.wroteHeader {
 			w.ResponseWriter.WriteHeader(w.statusCode)
 			w.wroteHeader = true

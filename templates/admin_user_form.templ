@@ -1,0 +1,171 @@
+package templates
+
+import (
+	"strconv"
+
+	"git.ssy.dk/noob/bingbong-go/models"
+)
+
+templ AdminUserForm(user models.User, isAdmin bool) {
+	<div class="p-4">
+		<h3 class="text-xl font-bold mb-4">
+			if user.ID == 0 {
+				Add New User
+			} else {
+				Edit User
+			}
+		</h3>
+		<form
+			if user.ID == 0 {
+				hx-post="/api/v1/admin/users"
+			} else {
+				hx-put={ "/api/v1/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) }
+			}
+			hx-swap="none"
+			class="space-y-4"
+			id="user-form"
+		>
+			<div class="form-control w-full">
+				<label class="label">
+					<span class="label-text">Username</span>
+				</label>
+				<input 
+					type="text" 
+					name="username" 
+					value={ user.Username }
+					placeholder="Username" 
+					class="input input-bordered w-full" 
+					required
+				/>
+			</div>
+			
+			<div class="form-control w-full">
+				<label class="label">
+					<span class="label-text">Email</span>
+				</label>
+				<input 
+					type="email" 
+					name="email" 
+					value={ user.Email }
+					placeholder="Email" 
+					class="input input-bordered w-full" 
+					required
+				/>
+			</div>
+			
+			<div class="form-control w-full">
+				<label class="label">
+					<span class="label-text">
+						if user.ID == 0 {
+							Password
+						} else {
+							Password (leave empty to keep current)
+						}
+					</span>
+				</label>
+				<input 
+					type="password" 
+					name="password" 
+					placeholder="Password" 
+					class="input input-bordered w-full" 
+					if user.ID == 0 {
+						required
+					}
+				/>
+			</div>
+			
+			if user.ID != 0 {
+				<div class="form-control">
+					<label class="label cursor-pointer">
+						<span class="label-text">Active</span>
+						<input 
+							type="checkbox" 
+							name="active" 
+							class="toggle toggle-primary" 
+							checked?={ user.Active }
+						/>
+					</label>
+				</div>
+			}
+			
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="label-text">Admin Access</span>
+					<input 
+						type="checkbox" 
+						name="is_admin" 
+						class="toggle toggle-primary" 
+						checked?={ isAdmin }
+					/>
+				</label>
+			</div>
+			
+			<div class="mt-6 flex justify-end space-x-2">
+				<label for="modal" class="btn btn-outline">Cancel</label>
+				<button type="submit" class="btn btn-primary">Save</button>
+			</div>
+		</form>
+	</div>
+	
+	<script>
+		document.addEventListener('htmx:afterRequest', function(event) {
+			if (event.detail.target.id === 'user-form') {
+				if (event.detail.xhr.status === 200 || event.detail.xhr.status === 201) {
+					// Close the modal
+					document.getElementById('modal').checked = false;
+					
+					// Refresh the user list
+					htmx.ajax('GET', '/api/v1/admin/users', {target: '#users-table-body', swap: 'outerHTML'});
+				} else {
+					// Show error message
+					alert('Error: ' + JSON.parse(event.detail.xhr.responseText).error);
+				}
+			}
+		});
+	</script>
+}
+
+templ AdminUsersList(users []models.User) {
+	<tbody id="users-table-body">
+		for _, user := range users {
+			<tr>
+				<td>{ strconv.FormatUint(uint64(user.ID), 10) }</td>
+				<td>{ user.Username }</td>
+				<td>{ user.Email }</td>
+				<td>
+					if user.Active {
+						<span class="badge badge-success">Yes</span>
+					} else {
+						<span class="badge badge-error">No</span>
+					}
+				</td>
+				<td>
+					<!-- Admin status would be determined separately -->
+					<span class="badge badge-secondary">-</span>
+				</td>
+				<td>
+					<div class="flex space-x-2">
+						<button 
+							class="btn btn-sm btn-outline"
+							hx-get={ "/api/v1/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) + "/edit" }
+							hx-target="#modal-content"
+							hx-trigger="click"
+							onclick="document.getElementById('modal').checked = true"
+						>
+							Edit
+						</button>
+						<button 
+							class="btn btn-sm btn-error"
+							hx-delete={ "/api/v1/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) }
+							hx-confirm="Are you sure you want to delete this user?"
+							hx-target="#users-table-body"
+							hx-swap="outerHTML"
+						>
+							Delete
+						</button>
+					</div>
+				</td>
+			</tr>
+		}
+	</tbody>
+}

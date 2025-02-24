@@ -15,6 +15,7 @@ import (
 
 // LoginPageHandler renders the login page
 func LoginPageHandler(c *gin.Context) {
+	// Get the timing object from the context
 	t, exists := c.Get("timing")
 	if !exists {
 		t = timing.NewRenderTiming() // Fallback if timing middleware isn't available
@@ -24,8 +25,16 @@ func LoginPageHandler(c *gin.Context) {
 	// Get redirect URL from query parameter
 	redirect := c.Query("redirect")
 
+	// Set content type explicitly to ensure proper handling
+	c.Header("Content-Type", "text/html; charset=utf-8")
+
+	// Start template timing
 	renderTiming.StartTemplate()
+
+	// Render the login template
 	templates.Login(renderTiming, redirect).Render(c.Request.Context(), c.Writer)
+
+	// End template timing
 	renderTiming.EndTemplate()
 }
 

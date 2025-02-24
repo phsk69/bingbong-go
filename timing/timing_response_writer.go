@@ -70,9 +70,16 @@ func (w *TimingResponseWriter) Flush() {
 	// Get the HTML content
 	html := w.buffer.String()
 
-	// Check for content type
+	// Check if this is HTML content - first check the header
 	contentType := w.Header().Get("Content-Type")
-	if !strings.Contains(contentType, "text/html") {
+	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(contentType, "application/xhtml")
+
+	// Also check if the content looks like HTML even if the header doesn't indicate it
+	if !isHTML && (strings.Contains(html, "<html") || strings.Contains(html, "<body")) {
+		isHTML = true
+	}
+
+	if !isHTML {
 		// Not HTML content, write as-is
 		if !w.wroteHeader {
 			w.ResponseWriter.WriteHeader(w.statusCode)
@@ -82,86 +89,72 @@ func (w *TimingResponseWriter) Flush() {
 		return
 	}
 
-	// Find the existing footer to replace
+	// Format the timing info with microsecond precision for values < 1ms
+	var pageTimeStr, templateTimeStr string
+
+	pageDuration := w.timing.GetPageDuration()
+	if pageDuration < 1.0 {
+		pageTimeStr = fmt.Sprintf("%.2f μs", pageDuration*1000) // Convert to microseconds
+	} else {
+		pageTimeStr = fmt.Sprintf("%.2f ms", pageDuration)
+	}
+
+	templateDuration := w.timing.GetTemplateDuration()
+	if templateDuration < 1.0 {
+		templateTimeStr = fmt.Sprintf("%.2f μs", templateDuration*1000) // Convert to microseconds
+	} else {
+		templateTimeStr = fmt.Sprintf("%.2f ms", templateDuration)
+	}
+
+	// Prepare the timing footer HTML
+	timingFooter := fmt.Sprintf(`<footer class="footer footer-center p-4 bg-base-200 text-base-content">
+		<div class="flex justify-center items-center">
+			<p>Copyright © 2024 - All rights reserved. Powered by bingbong-go Page: <strong>%s</strong> Template: <strong>%s</strong></p>
+		</div>
+	</footer>`, pageTimeStr, templateTimeStr)
+
+	// Find where to insert the footer
 	footerPos := strings.LastIndex(html, "<footer class=\"footer footer-center")
 	closingBodyPos := strings.LastIndex(html, "</body>")
+	closingDivPos := strings.LastIndex(html, "</div>")
 
+	var resultHTML string
 	if footerPos >= 0 && closingBodyPos > footerPos {
-		// Format the timing info with microsecond precision for values < 1ms
-		var pageTimeStr, templateTimeStr string
-
-		pageDuration := w.timing.GetPageDuration()
-		if pageDuration < 1.0 {
-			pageTimeStr = fmt.Sprintf("%.2f μs", pageDuration*1000) // Convert to microseconds
-		} else {
-			pageTimeStr = fmt.Sprintf("%.2f ms", pageDuration)
-		}
-
-		templateDuration := w.timing.GetTemplateDuration()
-		if templateDuration < 1.0 {
-			templateTimeStr = fmt.Sprintf("%.2f μs", templateDuration*1000) // Convert to microseconds
-		} else {
-			templateTimeStr = fmt.Sprintf("%.2f ms", templateDuration)
-		}
-
-		// Create a combined footer with both copyright and timing info on the same line
-		combinedFooter := fmt.Sprintf(`<footer class="footer footer-center p-4 bg-base-200 text-base-content">
-		<div class="flex justify-center items-center">
-			<p>Copyright © 2024 - All rights reserved. Powered by bingbong-go Page: <strong>%s</strong> Template: <strong>%s</strong></p>
-		</div>
-	</footer>`, pageTimeStr, templateTimeStr)
-
-		// Remove the original footer and add our combined one
-		resultHTML := html[:footerPos] + combinedFooter + html[closingBodyPos:]
-
-		// Write the status code and headers if not already written
-		if !w.wroteHeader {
-			w.ResponseWriter.WriteHeader(w.statusCode)
-			w.wroteHeader = true
-		}
-
-		// Write the modified HTML
-		w.ResponseWriter.Write([]byte(resultHTML))
+		// Replace existing footer with timing info
+		resultHTML = html[:footerPos] + timingFooter + html[closingBodyPos:]
 	} else if closingBodyPos >= 0 {
-		// No footer found, but body closing tag exists
-		// Insert a new footer before the body closing tag
-		var pageTimeStr, templateTimeStr string
-
-		pageDuration := w.timing.GetPageDuration()
-		if pageDuration < 1.0 {
-			pageTimeStr = fmt.Sprintf("%.2f μs", pageDuration*1000)
-		} else {
-			pageTimeStr = fmt.Sprintf("%.2f ms", pageDuration)
+		// No footer found, but body closing tag exists - insert timing footer
+		resultHTML = html[:closingBodyPos] + timingFooter + html[closingBodyPos:]
+	} else if closingDivPos >= 0 && strings.Contains(html, "site-wrapper") {
+		// Look for site-wrapper div closing
+		wrapperDivEnd := strings.LastIndex(html[:closingDivPos], "site-wrapper")
+		if wrapperDivEnd >= 0 {
+			// Find the actual closing div for site-wrapper
+			for i := wrapperDivEnd; i < len(html); i++ {
+				if i+6 < len(html) && html[i:i+6] == "</div>" {
+					resultHTML = html[:i] + timingFooter + html[i:]
+					break
+				}
+			}
 		}
 
-		templateDuration := w.timing.GetTemplateDuration()
-		if templateDuration < 1.0 {
-			templateTimeStr = fmt.Sprintf("%.2f μs", templateDuration*1000)
-		} else {
-			templateTimeStr = fmt.Sprintf("%.2f ms", templateDuration)
+		// If we couldn't find a proper place, just use the last closing div
+		if resultHTML == "" {
+			resultHTML = html[:closingDivPos] + timingFooter + html[closingDivPos:]
 		}
-
-		newFooter := fmt.Sprintf(`<footer class="footer footer-center p-4 bg-base-200 text-base-content">
-		<div class="flex justify-center items-center">
-			<p>Copyright © 2024 - All rights reserved. Powered by bingbong-go Page: <strong>%s</strong> Template: <strong>%s</strong></p>
-		</div>
-	</footer>`, pageTimeStr, templateTimeStr)
-		resultHTML := html[:closingBodyPos] + newFooter + html[closingBodyPos:]
-
-		if !w.wroteHeader {
-			w.ResponseWriter.WriteHeader(w.statusCode)
-			w.wroteHeader = true
-		}
-
-		w.ResponseWriter.Write([]byte(resultHTML))
 	} else {
-		// Fallback: just write the original HTML if we can't find insertion points
-		if !w.wroteHeader {
-			w.ResponseWriter.WriteHeader(w.statusCode)
-			w.wroteHeader = true
-		}
-		w.ResponseWriter.Write(w.buffer.Bytes())
+		// Fallback: just append the footer
+		resultHTML = html + timingFooter
 	}
+
+	// Write the status code and headers if not already written
+	if !w.wroteHeader {
+		w.ResponseWriter.WriteHeader(w.statusCode)
+		w.wroteHeader = true
+	}
+
+	// Write the modified HTML
+	w.ResponseWriter.Write([]byte(resultHTML))
 
 	// Clear the buffer
 	w.buffer.Reset()

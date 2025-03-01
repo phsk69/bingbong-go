@@ -33,7 +33,7 @@ templ Base(title string, t *timing.RenderTiming) {
 				.site-footer {
 				flex-shrink: 0;
 				padding: 0.5rem;
-				 }
+			 }
 			</style>
 		</head>
 		<body class="bg-base-100 text-base-content">
@@ -45,6 +45,7 @@ templ Base(title string, t *timing.RenderTiming) {
 					<div class="flex-none">
 						<ul class="menu menu-horizontal px-1">
 							<li><a href="/demo" class="btn btn-ghost">WebSocket Demo</a></li>
+							<li><a href="/dashboard" class="btn btn-ghost">Dashboard</a></li>
 							<li>
 								<button id="logout-btn" class="btn btn-ghost">Logout</button>
 							</li>
@@ -57,15 +58,82 @@ templ Base(title string, t *timing.RenderTiming) {
 				<!-- Footer placeholder - will be replaced by timing injector -->
 				<footer class="footer footer-center p-4 bg-base-200 text-base-content"></footer>
 			</div>
+			<!-- Modal Component -->
+			<input type="checkbox" id="modal" class="modal-toggle"/>
+			<div class="modal">
+				<div class="modal-box" id="modal-content">
+					<!-- Modal content will be loaded here via HTMX -->
+				</div>
+			</div>
+			<!-- Toast Notification -->
+			<div id="toast" class="toast toast-end hidden">
+				<div id="toast-content" class="alert">
+					<span id="toast-message"></span>
+				</div>
+			</div>
+			<script>
+				// Logout functionality
+				document.getElementById('logout-btn').addEventListener('click', function() {
+				// Clear the auth token from localStorage
+				localStorage.removeItem('authToken');
+				// Navigate to the logout endpoint
+				window.location.href = '/logout';
+				 });
+
+				// Function to show toast messages
+				function showToast(message, type = 'info') {
+				const toast = document.getElementById('toast');
+				const toastContent = document.getElementById('toast-content');
+				const toastMessage = document.getElementById('toast-message');
+
+				// Set message
+				toastMessage.textContent = message;
+
+				// Set alert type
+				toastContent.className = 'alert';
+				if (type === 'success') {
+				    toastContent.classList.add('alert-success');
+				} else if (type === 'error') {
+				    toastContent.classList.add('alert-error');
+				} else if (type === 'warning') {
+				    toastContent.classList.add('alert-warning');
+				} else {
+				    toastContent.classList.add('alert-info');
+				}
+
+				// Show toast
+				toast.classList.remove('hidden');
+
+				// Hide after 3 seconds
+				setTimeout(() => {
+				    toast.classList.add('hidden');
+				}, 3000);
+				 }
+
+				// Listen for HTMX events
+				document.body.addEventListener('htmx:afterRequest', function(e) {
+				// Check if the response is JSON
+				if (e.detail.xhr.getResponseHeader('Content-Type') === 'application/json') {
+				    try {
+				        const response = JSON.parse(e.detail.xhr.responseText);
+
+				        // Show success or error message
+				        if (response.message) {
+				            showToast(response.message, 'success');
+
+				            // Close modal if it was a successful form submission
+				            if (e.detail.xhr.status === 200 || e.detail.xhr.status === 201) {
+				                document.getElementById('modal').checked = false;
+				            }
+				        } else if (response.error) {
+				            showToast(response.error, 'error');
+				        }
+				    } catch (error) {
+				        // Not JSON or parsing error
+				    }
+				}
+				 });
+			</script>
 		</body>
-		<script>
-  			// Logout functionality
-  			document.getElementById('logout-btn').addEventListener('click', function() {
-  			  // Clear the auth token from localStorage
-  			  localStorage.removeItem('authToken');
-  			  // Navigate to the logout endpoint
-  			  window.location.href = '/logout';
-  			});
-		</script>
 	</html>
 }

@@ -1,0 +1,80 @@
+package templates
+
+import (
+	"strconv"
+
+	"git.ssy.dk/noob/bingbong-go/models"
+)
+
+// AdminGroupForm renders the form for creating or editing a group
+templ AdminGroupForm(group models.UserGroup, users []models.User, memberIDs map[uint]bool) {
+	<div class="p-4">
+		<h2 class="text-xl font-bold mb-4">
+			if group.ID == 0 {
+				Create New Group
+			} else {
+				Edit Group: { group.Name }
+			}
+		</h2>
+		<form
+			if group.ID == 0 {
+				hx-post="/api/v1/admin/groups"
+			} else {
+				hx-put={ "/api/v1/admin/groups/" + strconv.FormatUint(uint64(group.ID), 10) }
+			}
+			hx-target="#groups-table-body"
+			hx-swap="outerHTML"
+			class="space-y-4"
+		>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Group Name</span>
+				</label>
+				<input
+					type="text"
+					name="name"
+					value={ group.Name }
+					class="input input-bordered"
+					required
+				/>
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Description</span>
+				</label>
+				<textarea
+					name="description"
+					class="textarea textarea-bordered"
+					rows="3"
+				>{ group.Description }</textarea>
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Members</span>
+				</label>
+				<div class="border rounded-lg p-2 max-h-40 overflow-y-auto">
+					for _, user := range users {
+						<div class="form-control">
+							<label class="label cursor-pointer">
+								<span class="label-text">{ user.Username }</span>
+								<input
+									type="checkbox"
+									name="member_ids[]"
+									value={ strconv.FormatUint(uint64(user.ID), 10) }
+									class="checkbox"
+									if memberIDs != nil && memberIDs[user.ID] {
+										checked
+									}
+								/>
+							</label>
+						</div>
+					}
+				</div>
+			</div>
+			<div class="modal-action">
+				<button type="submit" class="btn btn-primary">Save</button>
+				<label for="modal" class="btn">Cancel</label>
+			</div>
+		</form>
+	</div>
+}

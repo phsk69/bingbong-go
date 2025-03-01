@@ -17,7 +17,8 @@
         ".vscode-insiders",
         ".env",
         "go.mod",
-        "go.sum"
+        "go.sum",
+        "*_templ.go"
     ],
     "cSpell.allowCompoundWords": true,
 }

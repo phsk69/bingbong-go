@@ -1,0 +1,573 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+	"git.ssy.dk/noob/bingbong-go/models"
+)
+
+// UserDashboard renders the main user dashboard
+templ UserDashboard(user models.User, activeTab string) {
+	@Base("User Dashboard", nil) {
+		<div class="container mx-auto px-4 py-8">
+			<h1 class="text-2xl font-bold mb-6">User Dashboard</h1>
+			
+			<!-- Tabs with client-side tab switching -->
+			<div class="tabs tabs-boxed mb-6">
+				<a class="tab tab-active" id="tab-account">Account Settings</a>
+				<a class="tab" id="tab-groups">My Groups</a>
+				<a class="tab" id="tab-invites">Invitations</a>
+			</div>
+			
+			<!-- Account Section - visible by default -->
+			<div id="account-section" class="space-y-6">
+				@UserAccountSettings(user)
+			</div>
+			
+			<!-- Groups Section - hidden by default -->
+			<div id="groups-section" class="space-y-6 hidden">
+				@UserGroups(user, nil)
+			</div>
+			
+			<!-- Invites Section - hidden by default -->
+			<div id="invites-section" class="space-y-6 hidden">
+				@UserInvites(user, nil, nil)
+			</div>
+		</div>
+		
+		<!-- Modal for forms -->
+		<input type="checkbox" id="modal" class="modal-toggle"/>
+		<div class="modal">
+			<div class="modal-box" id="modal-content">
+				<!-- Content will be loaded dynamically -->
+			</div>
+			<label class="modal-backdrop" for="modal">Close</label>
+		</div>
+		
+		<script>
+			// Tab switching logic
+			document.getElementById('tab-account').addEventListener('click', function() {
+				document.getElementById('tab-account').classList.add('tab-active');
+				document.getElementById('tab-groups').classList.remove('tab-active');
+				document.getElementById('tab-invites').classList.remove('tab-active');
+				document.getElementById('account-section').classList.remove('hidden');
+				document.getElementById('groups-section').classList.add('hidden');
+				document.getElementById('invites-section').classList.add('hidden');
+			});
+			
+			document.getElementById('tab-groups').addEventListener('click', function() {
+				document.getElementById('tab-groups').classList.add('tab-active');
+				document.getElementById('tab-account').classList.remove('tab-active');
+				document.getElementById('tab-invites').classList.remove('tab-active');
+				document.getElementById('groups-section').classList.remove('hidden');
+				document.getElementById('account-section').classList.add('hidden');
+				document.getElementById('invites-section').classList.add('hidden');
+			});
+			
+			document.getElementById('tab-invites').addEventListener('click', function() {
+				document.getElementById('tab-invites').classList.add('tab-active');
+				document.getElementById('tab-account').classList.remove('tab-active');
+				document.getElementById('tab-groups').classList.remove('tab-active');
+				document.getElementById('invites-section').classList.remove('hidden');
+				document.getElementById('account-section').classList.add('hidden');
+				document.getElementById('groups-section').classList.add('hidden');
+			});
+			
+			// Add authentication token to all HTMX requests
+			document.body.addEventListener('htmx:configRequest', function(evt) {
+				const token = localStorage.getItem('authToken');
+				if (token) {
+					evt.detail.headers['Authorization'] = 'Bearer ' + token;
+				}
+			});
+			
+			// Handle unauthorized responses
+			document.body.addEventListener('htmx:responseError', function(evt) {
+				if (evt.detail.xhr.status === 401) {
+					// Redirect to login page
+					window.location.href = '/login';
+				}
+			});
+		</script>
+	}
+}
+
+// UserAccountSettings template for account settings tab
+templ UserAccountSettings(user models.User) {
+	<div id="account-settings">
+		<h2 class="text-xl font-bold mb-4">Account Settings</h2>
+		
+		<!-- Change Password Form -->
+		<div class="card bg-base-200 shadow-md mb-6">
+			<div class="card-body">
+				<h3 class="card-title">Change Password</h3>
+				<form 
+					hx-put="/api/v1/user/password" 
+					hx-swap="outerHTML" 
+					hx-indicator="#password-spinner"
+					class="space-y-4"
+				>
+					<div class="form-control">
+						<label class="label">
+							<span class="label-text">Current Password</span>
+						</label>
+						<input type="password" name="current_password" class="input input-bordered" required />
+					</div>
+					<div class="form-control">
+						<label class="label">
+							<span class="label-text">New Password</span>
+						</label>
+						<input type="password" name="new_password" class="input input-bordered" required />
+					</div>
+					<div class="form-control">
+						<label class="label">
+							<span class="label-text">Confirm New Password</span>
+						</label>
+						<input type="password" name="confirm_password" class="input input-bordered" required />
+					</div>
+					<div class="form-control mt-6 flex flex-row items-center space-x-2">
+						<button type="submit" class="btn btn-primary">
+							Update Password
+							<span id="password-spinner" class="htmx-indicator">
+								<span class="loading loading-spinner loading-xs"></span>
+							</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		
+		<!-- Public Key Form -->
+		<div class="card bg-base-200 shadow-md">
+			<div class="card-body">
+				<h3 class="card-title">Public Key</h3>
+				<form 
+					hx-put="/api/v1/user/publickey" 
+					hx-swap="outerHTML" 
+					hx-indicator="#key-spinner"
+					class="space-y-4"
+				>
+					<div class="form-control">
+						<label class="label">
+							<span class="label-text">Your Public Key</span>
+						</label>
+						<textarea name="public_key" class="textarea textarea-bordered h-32 font-mono text-sm" placeholder="Paste your public key here...">{ user.PublicKey }</textarea>
+					</div>
+					<div class="form-control mt-6 flex flex-row items-center space-x-2">
+						<button type="submit" class="btn btn-primary">
+							Save Public Key
+							<span id="key-spinner" class="htmx-indicator">
+								<span class="loading loading-spinner loading-xs"></span>
+							</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+}
+
+// UserGroups template for groups management tab
+templ UserGroups(user models.User, groups []models.UserGroup) {
+	<div id="user-groups">
+		<div class="flex justify-between items-center mb-6">
+			<h2 class="text-xl font-bold">My Groups</h2>
+			<button 
+				class="btn btn-primary"
+				hx-get="/api/v1/user/groups/new"
+				hx-target="#modal-content"
+				hx-trigger="click"
+				onclick="document.getElementById('modal').checked = true"
+			>
+				Create New Group
+			</button>
+		</div>
+		
+		<!-- Groups List -->
+		<div class="overflow-x-auto">
+			<table class="table w-full">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Description</th>
+						<th>Members</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="groups-table-body">
+					if groups == nil || len(groups) == 0 {
+						<tr>
+							<td colspan="4" class="text-center py-4">
+								<p class="text-gray-500">You don't have any groups yet.</p>
+								<button 
+									class="btn btn-sm btn-primary mt-2"
+									hx-get="/api/v1/user/groups/new"
+									hx-target="#modal-content"
+									hx-trigger="click"
+									onclick="document.getElementById('modal').checked = true"
+								>
+									Create Your First Group
+								</button>
+							</td>
+						</tr>
+					} else {
+						for _, group := range groups {
+							<tr>
+								<td>{ group.Name }</td>
+								<td>{ group.Description }</td>
+								<td>{ fmt.Sprint(len(group.Members)) }</td>
+								<td>
+									<div class="flex space-x-2">
+										<button
+											class="btn btn-sm btn-outline"
+											hx-get={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(group.ID), 10) }
+											hx-target="#tab-content"
+											hx-push-url={ "/dashboard/groups/" + strconv.FormatUint(uint64(group.ID), 10) }
+										>
+											View
+										</button>
+										<button
+											class="btn btn-sm btn-outline"
+											hx-get={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(group.ID), 10) + "/edit" }
+											hx-target="#modal-content"
+											hx-trigger="click"
+											onclick="document.getElementById('modal').checked = true"
+										>
+											Edit
+										</button>
+									</div>
+								</td>
+							</tr>
+						}
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+}
+
+// GroupDetail shows detailed view of a single group
+templ GroupDetail(group models.UserGroup, currentUserID uint) {
+	<div id="group-detail">
+		<div class="flex justify-between items-center mb-6">
+			<h2 class="text-xl font-bold">Group: { group.Name }</h2>
+			<button 
+				class="btn btn-outline"
+				hx-get="/api/v1/user/groups"
+				hx-target="#tab-content"
+				hx-push-url="/dashboard/groups"
+			>
+				Back to Groups
+			</button>
+		</div>
+		
+		<div class="card bg-base-200 shadow-md mb-6">
+			<div class="card-body">
+				<h3 class="card-title">Group Details</h3>
+				<p><strong>Description:</strong> { group.Description }</p>
+				<p><strong>Created by:</strong> { group.Creator.Username }</p>
+				<p><strong>Created on:</strong> { group.CreatedAt.Format("Jan 02, 2006") }</p>
+			</div>
+		</div>
+		
+		<!-- Members List -->
+		<div class="card bg-base-200 shadow-md mb-6">
+			<div class="card-body">
+				<div class="flex justify-between items-center">
+					<h3 class="card-title">Members</h3>
+					if group.CreatedByID == currentUserID {
+						<button 
+							class="btn btn-sm btn-primary"
+							hx-get={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(group.ID), 10) + "/invite" }
+							hx-target="#modal-content"
+							hx-trigger="click"
+							onclick="document.getElementById('modal').checked = true"
+						>
+							Invite Member
+						</button>
+					} else {
+						<span></span>
+					}
+				</div>
+				
+				<div class="overflow-x-auto">
+					<table class="table w-full">
+						<thead>
+							<tr>
+								<th>Username</th>
+								<th>Email</th>
+								<th>Joined</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, membership := range group.Members {
+								<tr>
+									<td>{ membership.User.Username }</td>
+									<td>{ membership.User.Email }</td>
+									<td>{ membership.CreatedAt.Format("Jan 02, 2006") }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// UserInvites template for invitations tab
+templ UserInvites(user models.User, sentInvites []models.UserGroupInvite, receivedInvites []models.UserGroupInvite) {
+	<div id="user-invites">
+		<h2 class="text-xl font-bold mb-4">Invitations</h2>
+		
+		<!-- Received Invites -->
+		<div class="card bg-base-200 shadow-md mb-6">
+			<div class="card-body">
+				<h3 class="card-title">Invitations Received</h3>
+				<div class="overflow-x-auto">
+					<table class="table w-full">
+						<thead>
+							<tr>
+								<th>Group</th>
+								<th>From</th>
+								<th>Date</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody id="received-invites-table-body">
+							for _, invite := range receivedInvites {
+								<tr>
+									<td>{ invite.Group.Name }</td>
+									<td>{ invite.Initiator.Username }</td>
+									<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
+									<td>
+										<div class="flex space-x-2">
+											<button 
+												class="btn btn-sm btn-success"
+												hx-put={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) + "/accept" }
+												hx-target="#received-invites-table-body"
+												hx-indicator={ "#accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+												hx-confirm="Are you sure you want to join this group?"
+											>
+												Accept
+												<span id={"accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+													<span class="loading loading-spinner loading-xs"></span>
+												</span>
+											</button>
+											<button 
+												class="btn btn-sm btn-error"
+												hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
+												hx-target="#received-invites-table-body"
+												hx-indicator={ "#decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+												hx-confirm="Are you sure you want to decline this invitation?"
+											>
+												Decline
+												<span id={"decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+													<span class="loading loading-spinner loading-xs"></span>
+												</span>
+											</button>
+										</div>
+									</td>
+								</tr>
+							}
+							if len(receivedInvites) == 0 {
+								<tr>
+									<td colspan="4" class="text-center py-4 text-gray-500">
+										No pending invitations
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Sent Invites -->
+		<div class="card bg-base-200 shadow-md">
+			<div class="card-body">
+				<h3 class="card-title">Invitations Sent</h3>
+				<div class="overflow-x-auto">
+					<table class="table w-full">
+						<thead>
+							<tr>
+								<th>Group</th>
+								<th>To</th>
+								<th>Date</th>
+								<th>Status</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody id="sent-invites-table-body">
+							for _, invite := range sentInvites {
+								<tr>
+									<td>{ invite.Group.Name }</td>
+									<td>{ invite.Invitee.Username }</td>
+									<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
+									<td>
+										if invite.Accepted {
+											<span class="badge badge-success">Accepted</span>
+										} else {
+											<span class="badge badge-warning">Pending</span>
+										}
+									</td>
+									<td>
+										if !invite.Accepted {
+											<button 
+												class="btn btn-sm btn-error"
+												hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
+												hx-target="#sent-invites-table-body"
+												hx-indicator={ "#cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+												hx-confirm="Are you sure you want to cancel this invitation?"
+											>
+												Cancel
+												<span id={"cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+													<span class="loading loading-spinner loading-xs"></span>
+												</span>
+											</button>
+										} else {
+											<span class="text-gray-300">-</span>
+										}
+									</td>
+								</tr>
+							}
+							if len(sentInvites) == 0 {
+								<tr>
+									<td colspan="5" class="text-center py-4 text-gray-500">
+										No invitations sent
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// CreateGroupForm template for creating a new group
+templ CreateGroupForm() {
+	<div class="p-4">
+		<h2 class="text-xl font-bold mb-4">Create New Group</h2>
+		<form
+			hx-post="/api/v1/user/groups"
+			hx-target="#groups-table-body"
+			hx-swap="outerHTML"
+			hx-indicator="#create-group-spinner"
+			class="space-y-4"
+		>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Group Name</span>
+				</label>
+				<input
+					type="text"
+					name="name"
+					class="input input-bordered"
+					required
+				/>
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Description</span>
+				</label>
+				<textarea
+					name="description"
+					class="textarea textarea-bordered"
+					rows="3"
+				></textarea>
+			</div>
+			<div class="modal-action">
+				<button type="submit" class="btn btn-primary">
+					Create Group
+					<span id="create-group-spinner" class="htmx-indicator">
+						<span class="loading loading-spinner loading-xs"></span>
+					</span>
+				</button>
+				<label for="modal" class="btn">Cancel</label>
+			</div>
+		</form>
+	</div>
+}
+
+// EditGroupForm template for editing a group
+templ EditGroupForm(group models.UserGroup) {
+	<div class="p-4">
+		<h2 class="text-xl font-bold mb-4">Edit Group: { group.Name }</h2>
+		<form
+			hx-put={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(group.ID), 10) }
+			hx-target="#groups-table-body"
+			hx-swap="outerHTML"
+			hx-indicator="#edit-group-spinner"
+			class="space-y-4"
+		>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Group Name</span>
+				</label>
+				<input
+					type="text"
+					name="name"
+					value={ group.Name }
+					class="input input-bordered"
+					required
+				/>
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Description</span>
+				</label>
+				<textarea
+					name="description"
+					class="textarea textarea-bordered"
+					rows="3"
+				>{ group.Description }</textarea>
+			</div>
+			<div class="modal-action">
+				<button type="submit" class="btn btn-primary">
+					Update Group
+					<span id="edit-group-spinner" class="htmx-indicator">
+						<span class="loading loading-spinner loading-xs"></span>
+					</span>
+				</button>
+				<label for="modal" class="btn">Cancel</label>
+			</div>
+		</form>
+	</div>
+}
+
+// InviteUserForm template for inviting a user to a group
+templ InviteUserForm(groupID uint, users []models.User) {
+	<div class="p-4">
+		<h2 class="text-xl font-bold mb-4">Invite User to Group</h2>
+		<form
+			hx-post={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(groupID), 10) + "/invite" }
+			hx-target="#sent-invites-table-body"
+			hx-swap="outerHTML"
+			hx-indicator="#invite-user-spinner"
+			class="space-y-4"
+		>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Select User</span>
+				</label>
+				<select name="invitee_id" class="select select-bordered w-full" required>
+					<option value="">Select a user to invite...</option>
+					for _, user := range users {
+						<option value={ strconv.FormatUint(uint64(user.ID), 10) }>{ user.Username } ({ user.Email })</option>
+					}
+				</select>
+			</div>
+			<div class="modal-action">
+				<button type="submit" class="btn btn-primary">
+					Send Invitation
+					<span id="invite-user-spinner" class="htmx-indicator">
+						<span class="loading loading-spinner loading-xs"></span>
+					</span>
+				</button>
+				<label for="modal" class="btn">Cancel</label>
+			</div>
+		</form>
+	</div>
+}

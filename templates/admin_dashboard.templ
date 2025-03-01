@@ -15,12 +15,10 @@ func isAdmin(user models.User) bool {
         // Check if any of them are active
         for _, access := range user.AdminAccess {
             if access.Active {
-                fmt.Println("User", user.Username, "is an admin")
                 return true
             }
         }
     }
-    fmt.Println("User", user.Username, "is NOT an admin")
     return false
 }
 

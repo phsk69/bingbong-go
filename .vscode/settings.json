@@ -1,11 +1,4 @@
 {
-    "cSpell.words": [
-        "beforeend",
-        "dylib",
-        "ROUTEID",
-        "Skov",
-        "upgrader"
-    ],
     "cSpell.useGitignore": true,
     "cSpell.ignorePaths": [
         "package-lock.json",

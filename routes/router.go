@@ -170,6 +170,7 @@ func (r *Router) SetupRoutes() {
 
 		// WebSocket related APIs
 		websocket := v1.Group("/websocket")
+		admin.Use(middleware.AuthMiddleware())
 		{
 			websocket.GET("/stats", func(c *gin.Context) {
 				if r.wsHub != nil {

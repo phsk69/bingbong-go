@@ -19,7 +19,7 @@ func AdminDashboardHandler(c *gin.Context) {
 
 	// Get all users
 	var users []models.User
-	db.Find(&users)
+	db.Preload("AdminAccess").Find(&users)
 
 	// Get all groups with related data
 	var groups []models.UserGroup

@@ -140,8 +140,11 @@ templ AdminUsersList(users []models.User) {
 					}
 				</td>
 				<td>
-					<!-- Admin status would be determined separately -->
-					<span class="badge badge-secondary">-</span>
+					if isAdmin(user) {
+						<span class="badge badge-success">Yes</span>
+					} else {
+						<span class="badge badge-error">No</span>
+					}
 				</td>
 				<td>
 					<div class="flex space-x-2">

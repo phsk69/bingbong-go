@@ -116,6 +116,7 @@ func (r *Router) SetupRoutes() {
 			user.POST("/groups", handlers.CreateGroupHandler)
 			user.PUT("/groups/:id", handlers.UpdateGroupHandler)
 			user.POST("/groups/:id/invite", handlers.InviteUserToGroupHandler)
+			user.DELETE("/groups/:id/members/:member_id", handlers.RemoveGroupMemberHandler)
 
 			// Invitations management
 			user.GET("/invites/list", handlers.GetUserInvitesDataHandler) // API endpoint to fetch invites data

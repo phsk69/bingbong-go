@@ -21,6 +21,7 @@ type Message struct {
 	Data      []byte    `json:"data"`
 	Timestamp time.Time `json:"timestamp"`
 	SessionID string    `json:"session_id"`
+	UserID    uint      `json:"user_id,omitempty"`
 }
 
 // DistributedHub manages websocket connections across multiple pods
@@ -389,4 +390,62 @@ func (h *DistributedHub) Stop() {
 
 	// Force cleanup if needed
 	h.shutdown()
+}
+
+// NotificationType defines the different types of notifications
+type NotificationType string
+
+const (
+	NotificationTypeInvite NotificationType = "invite"
+	NotificationTypeSystem NotificationType = "system"
+)
+
+// WebSocketNotification represents a notification sent over WebSocket
+type WebSocketNotification struct {
+	Type    NotificationType `json:"type"`
+	Title   string           `json:"title"`
+	Message string           `json:"message"`
+	Data    any              `json:"data,omitempty"`
+}
+
+// SendNotificationToUser sends a notification to a specific user via WebSocket
+func (h *DistributedHub) SendNotificationToUser(userID uint, notification WebSocketNotification) {
+	// Convert the notification to JSON
+	notificationJSON, err := json.Marshal(notification)
+	if err != nil {
+		log.Printf("Failed to marshal notification: %v", err)
+		return
+	}
+
+	// Create a message with special "notification" prefix to distinguish it from regular messages
+	prefixedMessage := append([]byte("notification:"), notificationJSON...)
+
+	// Broadcast the message to all clients
+	// The client side will filter messages for the specific user
+	h.broadcast <- Message{
+		PodID:     h.podID,
+		Data:      prefixedMessage,
+		Timestamp: timeNow(),
+		UserID:    userID, // Include the target userID
+	}
+}
+
+// SendGroupInviteNotification sends an invite notification to a user
+func (h *DistributedHub) SendGroupInviteNotification(userID uint, inviterName, groupName string, inviteID uint) {
+	notification := WebSocketNotification{
+		Type:    NotificationTypeInvite,
+		Title:   "New Group Invitation",
+		Message: inviterName + " has invited you to join group: " + groupName,
+		Data: map[string]any{
+			"inviteId":  inviteID,
+			"groupName": groupName,
+			"inviter":   inviterName,
+		},
+	}
+
+	h.SendNotificationToUser(userID, notification)
+}
+
+var timeNow = func() time.Time {
+	return time.Now()
 }

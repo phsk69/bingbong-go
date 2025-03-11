@@ -515,9 +515,10 @@ func GetInviteUserFormHandler(c *gin.Context) {
 	t.EndTemplate()
 }
 
-// InviteUserToGroupHandler invites a user to a group
+// InviteUserToGroupHandler invites a user to a group - Updated with notifications
 func InviteUserToGroupHandler(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
+	hubInterface, hubExists := c.Get("hub")
 	userID := c.MustGet("userID").(uint)
 
 	groupID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -538,6 +539,13 @@ func InviteUserToGroupHandler(c *gin.Context) {
 	inviteeID, err := strconv.ParseUint(inviteRequest.InviteeID, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invitee ID"})
+		return
+	}
+
+	// Get the current user
+	var currentUser models.User
+	if err := db.First(&currentUser, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch current user"})
 		return
 	}
 
@@ -579,6 +587,18 @@ func InviteUserToGroupHandler(c *gin.Context) {
 	if err := db.Create(&invite).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create invitation"})
 		return
+	}
+
+	// Send a WebSocket notification if hub exists
+	if hubExists {
+		if hub, ok := hubInterface.(*DistributedHub); ok {
+			hub.SendGroupInviteNotification(
+				uint(inviteeID),
+				currentUser.Username,
+				group.Name,
+				invite.ID,
+			)
+		}
 	}
 
 	// Return the updated sent invites list
@@ -728,5 +748,66 @@ func GetUserAccountHandler(c *gin.Context) {
 
 	t.StartTemplate()
 	templates.UserAccountSettings(user).Render(c.Request.Context(), c.Writer)
+	t.EndTemplate()
+}
+
+// RemoveGroupMemberHandler removes a member from a group
+func RemoveGroupMemberHandler(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	t := c.MustGet("timing").(*timing.RenderTiming)
+	userID := c.MustGet("userID").(uint)
+
+	groupID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	memberID, err := strconv.ParseUint(c.Param("member_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid member ID"})
+		return
+	}
+
+	// Verify the group exists and the current user is the creator
+	var group models.UserGroup
+	if err := db.First(&group, groupID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
+		return
+	}
+
+	// Only the creator can remove members
+	if group.CreatedByID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to manage this group's members"})
+		return
+	}
+
+	// Cannot remove the creator (owner)
+	if uint(memberID) == group.CreatedByID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot remove the group owner"})
+		return
+	}
+
+	// Delete the membership
+	result := db.Where("user_id = ? AND group_id = ?", memberID, groupID).Delete(&models.UserGroupMember{})
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove member"})
+		return
+	}
+
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in this group"})
+		return
+	}
+
+	// Reload the group with members
+	if err := db.Preload("Creator").Preload("Members.User").First(&group, groupID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reload group data"})
+		return
+	}
+
+	// Render the updated group detail
+	t.StartTemplate()
+	templates.GroupDetail(group, userID).Render(c.Request.Context(), c.Writer)
 	t.EndTemplate()
 }

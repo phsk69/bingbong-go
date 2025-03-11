@@ -296,16 +296,16 @@ templ UserGroups(user models.User, groups []models.UserGroup) {
 	</div>
 }
 
-// GroupDetail shows detailed view of a single group
+// Final GroupDetail template with fixed invite button styling
 templ GroupDetail(group models.UserGroup, currentUserID uint) {
 	<div id="group-detail">
 		<div class="flex justify-between items-center mb-6">
 			<h2 class="text-xl font-bold">Group: { group.Name }</h2>
 			<button 
-				class="btn btn-outline"
+				class="btn btn-sm btn-outline"
 				hx-get="/api/v1/user/groups"
-				hx-target="#tab-content"
-				hx-push-url="/dashboard/groups"
+				hx-target="#groups-section"
+				hx-swap="innerHTML"
 			>
 				Back to Groups
 			</button>
@@ -323,8 +323,8 @@ templ GroupDetail(group models.UserGroup, currentUserID uint) {
 		<!-- Members List -->
 		<div class="card bg-base-200 shadow-md mb-6">
 			<div class="card-body">
-				<div class="flex justify-between items-center">
-					<h3 class="card-title">Members</h3>
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="card-title">Members ({ fmt.Sprint(len(group.Members)) })</h3>
 					if group.CreatedByID == currentUserID {
 						<button 
 							class="btn btn-sm btn-primary"
@@ -335,8 +335,6 @@ templ GroupDetail(group models.UserGroup, currentUserID uint) {
 						>
 							Invite Member
 						</button>
-					} else {
-						<span></span>
 					}
 				</div>
 				
@@ -345,16 +343,45 @@ templ GroupDetail(group models.UserGroup, currentUserID uint) {
 						<thead>
 							<tr>
 								<th>Username</th>
-								<th>Email</th>
 								<th>Joined</th>
+								<th>Role</th>
+								if group.CreatedByID == currentUserID {
+									<th class="text-right">Actions</th>
+								}
 							</tr>
 						</thead>
 						<tbody>
 							for _, membership := range group.Members {
 								<tr>
-									<td>{ membership.User.Username }</td>
-									<td>{ membership.User.Email }</td>
+									<td class="font-medium">{ membership.User.Username }</td>
 									<td>{ membership.CreatedAt.Format("Jan 02, 2006") }</td>
+									<td>
+										if membership.UserID == group.CreatedByID {
+											<span class="badge badge-primary">Owner</span>
+										} else {
+											<span class="badge badge-ghost">Member</span>
+										}
+									</td>
+									if group.CreatedByID == currentUserID && membership.UserID != currentUserID {
+										<td class="text-right">
+											<button
+												class="btn btn-sm btn-outline btn-error"
+												hx-delete={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(group.ID), 10) + "/members/" + strconv.FormatUint(uint64(membership.UserID), 10) }
+												hx-confirm="Are you sure you want to remove this member from the group?"
+												hx-target="#group-detail"
+												hx-swap="outerHTML"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+													<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+												</svg>
+												Remove
+											</button>
+										</td>
+									} else if group.CreatedByID == currentUserID {
+										<td class="text-right">
+											<span class="text-xs text-gray-500">-</span>
+										</td>
+									}
 								</tr>
 							}
 						</tbody>
@@ -365,15 +392,18 @@ templ GroupDetail(group models.UserGroup, currentUserID uint) {
 	</div>
 }
 
-// UserInvites template for invitations tab
+// Update the UserInvites empty states in the template
 templ UserInvites(user models.User, sentInvites []models.UserGroupInvite, receivedInvites []models.UserGroupInvite) {
 	<div id="user-invites">
-		<h2 class="text-xl font-bold mb-4">Invitations</h2>
-		
 		<!-- Received Invites -->
 		<div class="card bg-base-200 shadow-md mb-6">
 			<div class="card-body">
-				<h3 class="card-title">Invitations Received</h3>
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="card-title">Invitations Received</h3>
+					if len(receivedInvites) > 0 {
+						<span class="badge badge-primary">{fmt.Sprintf("%d new", len(receivedInvites))}</span>
+					}
+				</div>
 				<div class="overflow-x-auto">
 					<table class="table w-full">
 						<thead>
@@ -385,47 +415,58 @@ templ UserInvites(user models.User, sentInvites []models.UserGroupInvite, receiv
 							</tr>
 						</thead>
 						<tbody id="received-invites-table-body">
-							for _, invite := range receivedInvites {
+							if len(receivedInvites) == 0 {
 								<tr>
-									<td>{ invite.Group.Name }</td>
-									<td>{ invite.Initiator.Username }</td>
-									<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
-									<td>
-										<div class="flex space-x-2">
-											<button 
-												class="btn btn-sm btn-success"
-												hx-put={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) + "/accept" }
-												hx-target="#received-invites-table-body"
-												hx-indicator={ "#accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
-												hx-confirm="Are you sure you want to join this group?"
-											>
-												Accept
-												<span id={"accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
-													<span class="loading loading-spinner loading-xs"></span>
-												</span>
-											</button>
-											<button 
-												class="btn btn-sm btn-error"
-												hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
-												hx-target="#received-invites-table-body"
-												hx-indicator={ "#decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
-												hx-confirm="Are you sure you want to decline this invitation?"
-											>
-												Decline
-												<span id={"decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
-													<span class="loading loading-spinner loading-xs"></span>
-												</span>
-											</button>
+									<td colspan="4" class="text-center py-8">
+										<div class="flex flex-col items-center justify-center p-6">
+											<div class="bg-base-300 rounded-full p-4 mb-4">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+												</svg>
+											</div>
+											<h3 class="text-lg font-semibold text-base-content/70 mb-1">No Invitations</h3>
+											<p class="text-base-content/50 text-center max-w-md">You don't have any pending invitations. When someone invites you to a group, it will appear here.</p>
 										</div>
 									</td>
 								</tr>
-							}
-							if len(receivedInvites) == 0 {
-								<tr>
-									<td colspan="4" class="text-center py-4 text-gray-500">
-										No pending invitations
-									</td>
-								</tr>
+							} else {
+								for _, invite := range receivedInvites {
+									<tr>
+										<td>{ invite.Group.Name }</td>
+										<td>{ invite.Initiator.Username }</td>
+										<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
+										<td>
+											<div class="flex space-x-2">
+												<button 
+													class="btn btn-sm btn-success"
+													hx-put={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) + "/accept" }
+													hx-target="#received-invites-table-body"
+													hx-indicator={ "#accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+													hx-confirm="Are you sure you want to join this group?"
+													hx-swap="outerHTML"
+												>
+													Accept
+													<span id={"accept-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+														<span class="loading loading-spinner loading-xs"></span>
+													</span>
+												</button>
+												<button 
+													class="btn btn-sm btn-error"
+													hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
+													hx-target="#received-invites-table-body"
+													hx-indicator={ "#decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+													hx-confirm="Are you sure you want to decline this invitation?"
+													hx-swap="outerHTML"
+												>
+													Decline
+													<span id={"decline-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+														<span class="loading loading-spinner loading-xs"></span>
+													</span>
+												</button>
+											</div>
+										</td>
+									</tr>
+								}
 							}
 						</tbody>
 					</table>
@@ -449,50 +490,83 @@ templ UserInvites(user models.User, sentInvites []models.UserGroupInvite, receiv
 							</tr>
 						</thead>
 						<tbody id="sent-invites-table-body">
-							for _, invite := range sentInvites {
-								<tr>
-									<td>{ invite.Group.Name }</td>
-									<td>{ invite.Invitee.Username }</td>
-									<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
-									<td>
-										if invite.Accepted {
-											<span class="badge badge-success">Accepted</span>
-										} else {
-											<span class="badge badge-warning">Pending</span>
-										}
-									</td>
-									<td>
-										if !invite.Accepted {
-											<button 
-												class="btn btn-sm btn-error"
-												hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
-												hx-target="#sent-invites-table-body"
-												hx-indicator={ "#cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
-												hx-confirm="Are you sure you want to cancel this invitation?"
-											>
-												Cancel
-												<span id={"cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
-													<span class="loading loading-spinner loading-xs"></span>
-												</span>
-											</button>
-										} else {
-											<span class="text-gray-300">-</span>
-										}
-									</td>
-								</tr>
-							}
 							if len(sentInvites) == 0 {
 								<tr>
-									<td colspan="5" class="text-center py-4 text-gray-500">
-										No invitations sent
+									<td colspan="5" class="text-center py-8">
+										<div class="flex flex-col items-center justify-center p-6">
+											<div class="bg-base-300 rounded-full p-4 mb-4">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+												</svg>
+											</div>
+											<h3 class="text-lg font-semibold text-base-content/70 mb-1">No Invitations Sent</h3>
+											<p class="text-base-content/50 text-center max-w-md mb-4">You haven't sent any invitations yet. Invite others to join your groups!</p>
+											<div class="flex justify-center">
+												<a href="/dashboard/groups" class="btn btn-sm btn-primary">
+													Go to My Groups
+												</a>
+											</div>
+										</div>
 									</td>
 								</tr>
+							} else {
+								for _, invite := range sentInvites {
+									<tr>
+										<td>{ invite.Group.Name }</td>
+										<td>{ invite.Invitee.Username }</td>
+										<td>{ invite.CreatedAt.Format("Jan 02, 2006") }</td>
+										<td>
+											if invite.Accepted {
+												<span class="badge badge-success">Accepted</span>
+											} else {
+												<span class="badge badge-warning">Pending</span>
+											}
+										</td>
+										<td>
+											if !invite.Accepted {
+												<button 
+													class="btn btn-sm btn-error"
+													hx-delete={ "/api/v1/user/invites/" + strconv.FormatUint(uint64(invite.ID), 10) }
+													hx-target="#sent-invites-table-body"
+													hx-indicator={ "#cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10) }
+													hx-confirm="Are you sure you want to cancel this invitation?"
+													hx-swap="outerHTML"
+												>
+													Cancel
+													<span id={"cancel-spinner-" + strconv.FormatUint(uint64(invite.ID), 10)} class="htmx-indicator">
+														<span class="loading loading-spinner loading-xs"></span>
+													</span>
+												</button>
+											} else {
+												<span class="text-gray-300">-</span>
+											}
+										</td>
+									</tr>
+								}
 							}
 						</tbody>
 					</table>
 				</div>
 			</div>
 		</div>
+		
+		<!-- Auto-refresh script -->
+		<script>
+			// Set up periodic refresh for invites
+			function setupInviteRefresh() {
+				// Only set up refresh if this section is visible
+				if (!document.getElementById('invites-section').classList.contains('hidden')) {
+					// Refresh every 30 seconds
+					setTimeout(function() {
+						htmx.ajax('GET', '/api/v1/user/invites/list', {target: '#invites-section', swap: 'innerHTML'});
+						setupInviteRefresh();
+					}, 30000);
+				}
+			}
+			
+			// Initialize refresh when this component is loaded
+			setupInviteRefresh();
+		</script>
 	</div>
 }
 
@@ -589,37 +663,56 @@ templ EditGroupForm(group models.UserGroup) {
 	</div>
 }
 
-// InviteUserForm template for inviting a user to a group
+// Complete updated InviteUserForm template with all enhancements
 templ InviteUserForm(groupID uint, users []models.User) {
-	<div class="p-4">
+	<div class="p-6">
 		<h2 class="text-xl font-bold mb-4">Invite User to Group</h2>
-		<form
-			hx-post={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(groupID), 10) + "/invite" }
-			hx-target="#sent-invites-table-body"
-			hx-swap="outerHTML"
-			hx-indicator="#invite-user-spinner"
-			class="space-y-4"
-		>
-			<div class="form-control">
-				<label class="label">
-					<span class="label-text">Select User</span>
-				</label>
-				<select name="invitee_id" class="select select-bordered w-full" required>
-					<option value="">Select a user to invite...</option>
-					for _, user := range users {
-						<option value={ strconv.FormatUint(uint64(user.ID), 10) }>{ user.Username } ({ user.Email })</option>
-					}
-				</select>
+		
+		if len(users) == 0 {
+			<div class="alert alert-info mb-4">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+				</svg>
+				<div>
+					<p>All eligible users have already been invited or are members of this group.</p>
+				</div>
 			</div>
-			<div class="modal-action">
-				<button type="submit" class="btn btn-primary">
-					Send Invitation
-					<span id="invite-user-spinner" class="htmx-indicator">
-						<span class="loading loading-spinner loading-xs"></span>
-					</span>
-				</button>
-				<label for="modal" class="btn">Cancel</label>
+			<div class="modal-action mt-4">
+				<label for="modal" class="btn">Close</label>
 			</div>
-		</form>
+		} else {
+			<p class="text-gray-500 mb-6">Select a user to invite them to join this group.</p>
+			
+			<form
+				hx-post={ "/api/v1/user/groups/" + strconv.FormatUint(uint64(groupID), 10) + "/invite" }
+				hx-target="#sent-invites-table-body"
+				hx-swap="outerHTML"
+				hx-indicator="#invite-user-spinner"
+				class="space-y-6"
+				hx-on::after-request="if(event.detail.successful) document.getElementById('modal').checked = false;"
+			>
+				<div class="form-control">
+					<label class="label">
+						<span class="label-text">Select User</span>
+					</label>
+					<select name="invitee_id" class="select select-bordered w-full" required>
+						<option value="">Select a user to invite...</option>
+						for _, user := range users {
+							<option value={ strconv.FormatUint(uint64(user.ID), 10) }>{ user.Username }</option>
+						}
+					</select>
+				</div>
+				
+				<div class="flex justify-end space-x-2 mt-6">
+					<button type="submit" class="btn btn-primary">
+						Send Invitation
+						<span id="invite-user-spinner" class="htmx-indicator ml-1">
+							<span class="loading loading-spinner loading-xs"></span>
+						</span>
+					</button>
+					<label for="modal" class="btn">Cancel</label>
+				</div>
+			</form>
+		}
 	</div>
 }

@@ -110,6 +110,7 @@ func (r *Router) SetupRoutes() {
 			user.GET("/groups", handlers.GetUserGroupsDataHandler) // API endpoint to fetch groups data
 			user.GET("/groups/new", handlers.GetCreateGroupFormHandler)
 			user.GET("/groups/:id", handlers.GetGroupDetailHandler)
+			user.DELETE("/groups/:id", handlers.DeleteGroupHandler)
 			user.GET("/groups/:id/edit", handlers.GetEditGroupFormHandler)
 			user.GET("/groups/:id/invite", handlers.GetInviteUserFormHandler)
 			user.POST("/groups", handlers.CreateGroupHandler)

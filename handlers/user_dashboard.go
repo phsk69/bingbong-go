@@ -46,7 +46,7 @@ func UserGroupsHandler(c *gin.Context) {
 	t.EndTemplate()
 }
 
-// GetUserGroupsDataHandler fetches and renders just the groups list
+// GetUserGroupsDataHandler fetches and renders just the groups list - updated
 func GetUserGroupsDataHandler(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	t := c.MustGet("timing").(*timing.RenderTiming)
@@ -68,6 +68,59 @@ func GetUserGroupsDataHandler(c *gin.Context) {
 		return
 	}
 
+	t.StartTemplate()
+	templates.UserGroups(user, groups).Render(c.Request.Context(), c.Writer)
+	t.EndTemplate()
+}
+
+// DeleteGroupHandler deletes a user group
+func DeleteGroupHandler(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	userID := c.MustGet("userID").(uint)
+
+	groupID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	// Verify the group exists and the user is the creator
+	var group models.UserGroup
+	if err := db.First(&group, groupID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
+		return
+	}
+
+	// Only the creator can delete the group
+	if group.CreatedByID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to delete this group"})
+		return
+	}
+
+	// Delete the group
+	if err := db.Delete(&group).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete group"})
+		return
+	}
+
+	// Get user data
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+
+	// Return the updated groups list
+	var groups []models.UserGroup
+	if err := db.Preload("Creator").Preload("Members.User").
+		Joins("LEFT JOIN user_group_members ON user_groups.id = user_group_members.group_id").
+		Where("user_groups.created_by_id = ? OR user_group_members.user_id = ?", userID, userID).
+		Group("user_groups.id").Find(&groups).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch groups"})
+		return
+	}
+
+	t := c.MustGet("timing").(*timing.RenderTiming)
 	t.StartTemplate()
 	templates.UserGroups(user, groups).Render(c.Request.Context(), c.Writer)
 	t.EndTemplate()
@@ -289,7 +342,7 @@ func GetGroupDetailHandler(c *gin.Context) {
 	t.EndTemplate()
 }
 
-// CreateGroupHandler creates a new group
+// CreateGroupHandler creates a new group - updated
 func CreateGroupHandler(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	userID := c.MustGet("userID").(uint)
@@ -333,6 +386,13 @@ func CreateGroupHandler(c *gin.Context) {
 		return
 	}
 
+	// Get user data
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+
 	// Return the updated groups list
 	var groups []models.UserGroup
 	if err := db.Preload("Creator").Preload("Members.User").
@@ -345,11 +405,11 @@ func CreateGroupHandler(c *gin.Context) {
 
 	t := c.MustGet("timing").(*timing.RenderTiming)
 	t.StartTemplate()
-	templates.UserGroups(models.User{ID: userID}, groups).Render(c.Request.Context(), c.Writer)
+	templates.UserGroups(user, groups).Render(c.Request.Context(), c.Writer)
 	t.EndTemplate()
 }
 
-// UpdateGroupHandler updates an existing group
+// UpdateGroupHandler updates an existing group - updated
 func UpdateGroupHandler(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	userID := c.MustGet("userID").(uint)
@@ -393,6 +453,13 @@ func UpdateGroupHandler(c *gin.Context) {
 		return
 	}
 
+	// Get user data for the response
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+
 	// Return the updated groups list
 	var groups []models.UserGroup
 	if err := db.Preload("Creator").Preload("Members.User").
@@ -405,7 +472,7 @@ func UpdateGroupHandler(c *gin.Context) {
 
 	t := c.MustGet("timing").(*timing.RenderTiming)
 	t.StartTemplate()
-	templates.UserGroups(models.User{ID: userID}, groups).Render(c.Request.Context(), c.Writer)
+	templates.UserGroups(user, groups).Render(c.Request.Context(), c.Writer)
 	t.EndTemplate()
 }
 

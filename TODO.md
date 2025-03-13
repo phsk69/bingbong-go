@@ -1,6 +1,11 @@
 # TODO
 
-
+- [ ] Navigating from my groups in the invites stuff, groups list does not render the content correctly
+- [ ] Inviting a user to a group, broadcasts it to all connected (invited test, and i got toast that the current user was invited)
+  - [ ] The toast renders in the bottom right
+  - [ ] Cancelling an invite creates wierd double ui stuff
+- [ ] Template / Page should be bold in the footer? (the measurements)
+- [ ] Logout from the admin page does nothing
 - [ ] unit testing for critical logic?
 - [ ] NAv looks wierd on mobile, do a burger thing when we detect mobile?
 - [ ] Logout thing somewhere

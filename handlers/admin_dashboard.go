@@ -17,9 +17,9 @@ func AdminDashboardHandler(c *gin.Context) {
 	// Explicitly set content type for HTML
 	c.Header("Content-Type", "text/html; charset=utf-8")
 
-	// Get all users
+	// Get all users with their admin access records
 	var users []models.User
-	db.Find(&users)
+	db.Preload("AdminAccess").Find(&users)
 
 	// Get all groups with related data
 	var groups []models.UserGroup

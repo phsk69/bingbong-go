@@ -16,9 +16,10 @@ import (
 func AdminGetUsersHandler(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	t := c.MustGet("timing").(*timing.RenderTiming)
-
 	var users []models.User
-	if err := db.Find(&users).Error; err != nil {
+
+	// Preload AdminAccess to properly determine admin status
+	if err := db.Preload("AdminAccess").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}

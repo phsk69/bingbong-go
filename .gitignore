@@ -171,3 +171,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+## custom
+
+# Ignore all .DS_Store files
+.DS_Store
+static/css/output.css

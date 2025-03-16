@@ -1,11 +1,4 @@
 {
-    "cSpell.words": [
-        "beforeend",
-        "dylib",
-        "ROUTEID",
-        "Skov",
-        "upgrader"
-    ],
     "cSpell.useGitignore": true,
     "cSpell.ignorePaths": [
         "package-lock.json",
@@ -17,7 +10,8 @@
         ".vscode-insiders",
         ".env",
         "go.mod",
-        "go.sum"
+        "go.sum",
+        "*_templ.go"
     ],
     "cSpell.allowCompoundWords": true,
 }

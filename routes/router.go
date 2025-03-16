@@ -78,6 +78,15 @@ func (r *Router) SetupRoutes() {
 		}
 	})
 
+	// User Dashboard routes (protected)
+	dashboard := r.engine.Group("/dashboard")
+	dashboard.Use(middleware.AuthMiddleware())
+	{
+		dashboard.GET("/", handlers.UserDashboardHandler)
+		dashboard.GET("/groups", handlers.UserGroupsHandler)
+		dashboard.GET("/invites", handlers.UserInvitesHandler)
+	}
+
 	// API routes
 	api := r.engine.Group("/api")
 	v1 := api.Group("/v1")
@@ -86,6 +95,33 @@ func (r *Router) SetupRoutes() {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", handlers.LoginHandler)
+		}
+
+		// User API endpoints (protected)
+		user := v1.Group("/user")
+		user.Use(middleware.AuthMiddleware())
+		{
+			// Account settings
+			user.GET("/account", handlers.GetUserAccountHandler) // New endpoint for account tab
+			user.PUT("/password", handlers.UpdateUserPasswordHandler)
+			user.PUT("/publickey", handlers.UpdateUserPublicKeyHandler)
+
+			// Groups management
+			user.GET("/groups", handlers.GetUserGroupsDataHandler) // API endpoint to fetch groups data
+			user.GET("/groups/new", handlers.GetCreateGroupFormHandler)
+			user.GET("/groups/:id", handlers.GetGroupDetailHandler)
+			user.DELETE("/groups/:id", handlers.DeleteGroupHandler)
+			user.GET("/groups/:id/edit", handlers.GetEditGroupFormHandler)
+			user.GET("/groups/:id/invite", handlers.GetInviteUserFormHandler)
+			user.POST("/groups", handlers.CreateGroupHandler)
+			user.PUT("/groups/:id", handlers.UpdateGroupHandler)
+			user.POST("/groups/:id/invite", handlers.InviteUserToGroupHandler)
+			user.DELETE("/groups/:id/members/:member_id", handlers.RemoveGroupMemberHandler)
+
+			// Invitations management
+			user.GET("/invites/list", handlers.GetUserInvitesDataHandler) // API endpoint to fetch invites data
+			user.PUT("/invites/:id/accept", handlers.AcceptInviteHandler)
+			user.DELETE("/invites/:id", handlers.DeclineInviteHandler)
 		}
 
 		// Public API endpoints
@@ -122,11 +158,21 @@ func (r *Router) SetupRoutes() {
 				adminUsers.DELETE("/:id", handlers.AdminDeleteUserHandler)
 			}
 
-			// Admin group management could be added similarly here
+			// Admin group management
+			adminGroups := admin.Group("/groups")
+			{
+				adminGroups.GET("/", handlers.AdminGetGroupsHandler)
+				adminGroups.GET("/new", handlers.AdminGetGroupFormHandler)
+				adminGroups.GET("/:id/edit", handlers.AdminGetGroupEditFormHandler)
+				adminGroups.POST("/", handlers.AdminCreateGroupHandler)
+				adminGroups.PUT("/:id", handlers.AdminUpdateGroupHandler)
+				adminGroups.DELETE("/:id", handlers.AdminDeleteGroupHandler)
+			}
 		}
 
 		// WebSocket related APIs
 		websocket := v1.Group("/websocket")
+		admin.Use(middleware.AuthMiddleware())
 		{
 			websocket.GET("/stats", func(c *gin.Context) {
 				if r.wsHub != nil {

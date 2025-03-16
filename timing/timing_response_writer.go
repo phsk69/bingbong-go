@@ -109,7 +109,7 @@ func (w *TimingResponseWriter) Flush() {
 	// Prepare the timing footer HTML
 	timingFooter := fmt.Sprintf(`<footer class="footer footer-center p-4 bg-base-200 text-base-content">
 		<div class="flex justify-center items-center">
-			<p>Copyright © 2024 - All rights reserved. Powered by bingbong-go Page: <strong>%s</strong> Template: <strong>%s</strong></p>
+			<p>Copyright © 2025 - All rights reserved. Powered by bingbong-go Page: <strong>%s</strong> Template: <strong>%s</strong></p>
 		</div>
 	</footer>`, pageTimeStr, templateTimeStr)
 

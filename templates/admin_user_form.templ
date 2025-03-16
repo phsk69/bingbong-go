@@ -17,7 +17,7 @@ templ AdminUserForm(user models.User, isAdmin bool) {
 		</h3>
 		<form
 			if user.ID == 0 {
-				hx-post="/api/v1/admin/users"
+				hx-post="/api/v1/admin/users"	
 			} else {
 				hx-put={ "/api/v1/admin/users/" + strconv.FormatUint(uint64(user.ID), 10) }
 			}
@@ -140,8 +140,11 @@ templ AdminUsersList(users []models.User) {
 					}
 				</td>
 				<td>
-					<!-- Admin status would be determined separately -->
-					<span class="badge badge-secondary">-</span>
+					if isAdmin(user) {
+						<span class="badge badge-success">Yes</span>
+					} else {
+						<span class="badge badge-error">No</span>
+					}
 				</td>
 				<td>
 					<div class="flex space-x-2">

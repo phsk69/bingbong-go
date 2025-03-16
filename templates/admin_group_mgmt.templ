@@ -1,0 +1,54 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	"git.ssy.dk/noob/bingbong-go/models"
+)
+
+// AdminGroupsList renders the groups list for the admin panel
+// AdminGroupsList renders the groups list for the admin panel
+templ AdminGroupsList(groups []models.UserGroup) {
+	<tbody id="groups-table-body">
+		for _, group := range groups {
+			<tr>
+				<td>{ strconv.FormatUint(uint64(group.ID), 10) }</td>
+				<td>{ group.Name }</td>
+				<td>{ group.Description }</td>
+				<td>
+					if group.Creator.Username != "" {
+						{ group.Creator.Username }
+					} else {
+						<span class="text-gray-400">Unknown</span>
+					}
+				</td>
+				<td>{ fmt.Sprint(len(group.Members)) }</td>
+				<td>
+					<div class="flex space-x-2">
+						<button
+							class="btn btn-sm btn-outline"
+							hx-get={ "/api/v1/admin/groups/" + strconv.FormatUint(uint64(group.ID), 10) + "/edit" }
+							hx-target="#modal-content"
+							hx-trigger="click"
+							onclick="document.getElementById('modal').checked = true"
+						>
+							Edit
+						</button>
+						<button
+							class="btn btn-sm btn-outline btn-error"
+							hx-delete={ "/api/v1/admin/groups/" + strconv.FormatUint(uint64(group.ID), 10) }
+							hx-confirm="Are you sure you want to delete this group?"
+							hx-target="#groups-table-body"
+							hx-swap="outerHTML"
+						>
+							Delete
+						</button>
+					</div>
+				</td>
+			</tr>
+		}
+	</tbody>
+}
+
+

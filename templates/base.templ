@@ -14,27 +14,27 @@ templ Base(title string, t *timing.RenderTiming) {
 			<link rel="icon" href="/static/images/favicon/favicon.ico"/>
 			<script src="/static/js/htmx.min.js"></script>
 			<style>
-/* Ensure the body fills the entire viewport height */
-html, body {
-height: 100%;
-margin: 0;
- }
-/* Create a wrapper that allows for proper footer positioning */
-.site-wrapper {
-min-height: 100vh;
-display: flex;
-flex-direction: column;
- }
-/* Push the footer to the bottom */
-.site-content {
-flex: 1 0 auto;
- }
-/* Prevent footer from being pushed off-screen and make it slim */
-.site-footer {
-flex-shrink: 0;
-padding: 0.5rem;
- }
-</style>
+				/* Ensure the body fills the entire viewport height */
+				html, body {
+				height: 100%;
+				margin: 0;
+				 }
+				/* Create a wrapper that allows for proper footer positioning */
+				.site-wrapper {
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				 }
+				/* Push the footer to the bottom */
+				.site-content {
+				flex: 1 0 auto;
+				 }
+				/* Prevent footer from being pushed off-screen and make it slim */
+				.site-footer {
+				flex-shrink: 0;
+				padding: 0.5rem;
+			 }
+			</style>
 		</head>
 		<body class="bg-base-100 text-base-content">
 			<div class="site-wrapper">
@@ -44,7 +44,11 @@ padding: 0.5rem;
 					</div>
 					<div class="flex-none">
 						<ul class="menu menu-horizontal px-1">
-							<li><a href="/demo">WebSocket Demo</a></li>
+							<li><a href="/demo" class="btn btn-ghost">WebSocket Demo</a></li>
+							<li><a href="/dashboard" class="btn btn-ghost">Dashboard</a></li>
+							<li>
+								<button id="logout-btn" class="btn btn-ghost">Logout</button>
+							</li>
 						</ul>
 					</div>
 				</nav>
@@ -54,6 +58,245 @@ padding: 0.5rem;
 				<!-- Footer placeholder - will be replaced by timing injector -->
 				<footer class="footer footer-center p-4 bg-base-200 text-base-content"></footer>
 			</div>
+			<!-- Modal Component -->
+			<input type="checkbox" id="modal" class="modal-toggle"/>
+			<div class="modal">
+				<div class="modal-box" id="modal-content">
+					<!-- Modal content will be loaded here via HTMX -->
+				</div>
+			</div>
+			<!-- Toast Notification -->
+			<div id="toast" class="toast toast-end hidden z-50">
+				<div id="toast-content" class="alert">
+					<span id="toast-message"></span>
+					<div id="toast-actions" class="flex mt-2 justify-end hidden"></div>
+				</div>
+			</div>
+			<script>
+				// Logout functionality
+				document.getElementById('logout-btn').addEventListener('click', function() {
+				// Clear the auth token from localStorage
+				localStorage.removeItem('authToken');
+				// Navigate to the logout endpoint
+				window.location.href = '/logout';
+				 });
+
+				// Enhance the showToast function in the Base template to support quick actions for invites
+				function showToast(message, type = 'info', actions = null) {
+				    const toast = document.getElementById('toast');
+				    const toastContent = document.getElementById('toast-content');
+				    const toastMessage = document.getElementById('toast-message');
+
+				    // Set message
+				    toastMessage.textContent = message;
+
+				    // Set alert type
+				    toastContent.className = 'alert';
+				    if (type === 'success') {
+				        toastContent.classList.add('alert-success');
+				    } else if (type === 'error') {
+				        toastContent.classList.add('alert-error');
+				    } else if (type === 'warning') {
+				        toastContent.classList.add('alert-warning');
+				    } else {
+				        toastContent.classList.add('alert-info');
+				    }
+
+				    // Add action buttons if provided
+				    const actionsContainer = document.getElementById('toast-actions');
+				    if (actionsContainer) {
+				        actionsContainer.innerHTML = '';
+				        if (actions) {
+				            actions.forEach(action => {
+				                const button = document.createElement('button');
+				                button.className = action.class || 'btn btn-sm';
+				                button.textContent = action.text;
+				                button.onclick = () => {
+				                    action.onClick();
+				                    toast.classList.add('hidden');
+				                };
+				                actionsContainer.appendChild(button);
+				            });
+				            actionsContainer.classList.remove('hidden');
+				        } else {
+				            actionsContainer.classList.add('hidden');
+				        }
+				    }
+
+				    // Show toast
+				    toast.classList.remove('hidden');
+
+				    // Hide after 5 seconds (longer for actions)
+				    setTimeout(() => {
+				        toast.classList.add('hidden');
+				    }, actions ? 8000 : 3000);
+				}
+
+				// Update the handleNotification function to add quick actions for invites
+				function handleNotification(notification) {
+				    if (notification.type === 'invite' && notification.data) {
+				        // For invite notifications, add quick actions
+				        showToast(notification.message, 'info', [
+				            {
+				                text: 'View',
+				                class: 'btn btn-sm btn-info mx-1',
+				                onClick: () => {
+				                    // Navigate to invites tab
+				                    document.getElementById('tab-invites').click();
+				                }
+				            },
+				            {
+				                text: 'Accept',
+				                class: 'btn btn-sm btn-success mx-1',
+				                onClick: () => {
+				                    // Accept the invitation
+				                    const inviteId = notification.data.inviteId;
+				                    htmx.ajax('PUT', `/api/v1/user/invites/${inviteId}/accept`, {
+				                        target: '#received-invites-table-body',
+				                        swap: 'outerHTML'
+				                    });
+				                    // Show success message
+				                    setTimeout(() => {
+				                        showToast(`You have joined ${notification.data.groupName}`, 'success');
+				                    }, 1000);
+				                }
+				            },
+				            {
+				                text: 'Decline',
+				                class: 'btn btn-sm btn-error mx-1',
+				                onClick: () => {
+				                    // Decline the invitation
+				                    const inviteId = notification.data.inviteId;
+				                    htmx.ajax('DELETE', `/api/v1/user/invites/${inviteId}`, {
+				                        target: '#received-invites-table-body',
+				                        swap: 'outerHTML'
+				                    });
+				                    // Show message
+				                    setTimeout(() => {
+				                        showToast('Invitation declined', 'info');
+				                    }, 1000);
+				                }
+				            }
+				        ]);
+				    } else {
+				        // For other notifications, just show the toast
+				        showToast(notification.message, notification.type === 'system' ? 'info' : 'info');
+				    }
+				}
+
+				// Listen for HTMX events
+				document.body.addEventListener('htmx:afterRequest', function(e) {
+				// Check if the response is JSON
+				if (e.detail.xhr.getResponseHeader('Content-Type') === 'application/json') {
+				    try {
+				        const response = JSON.parse(e.detail.xhr.responseText);
+
+				        // Show success or error message
+				        if (response.message) {
+				            showToast(response.message, 'success');
+
+				            // Close modal if it was a successful form submission
+				            if (e.detail.xhr.status === 200 || e.detail.xhr.status === 201) {
+				                document.getElementById('modal').checked = false;
+				            }
+				        } else if (response.error) {
+				            showToast(response.error, 'error');
+				        }
+				    } catch (error) {
+				        // Not JSON or parsing error
+				    }
+				}
+				 });
+				// Close modal with ESC key
+				document.addEventListener('keydown', function(event) {
+					if (event.key === 'Escape') {
+						document.getElementById('modal').checked = false;
+					}
+				});
+				
+				// WebSocket setup for notifications
+				let notificationWs;
+				
+				function connectNotificationWs() {
+					const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+					notificationWs = new WebSocket(`${protocol}//${window.location.host}/ws`);
+					
+					notificationWs.onopen = function() {
+						console.log("Connected to notification websocket");
+					};
+					
+					notificationWs.onerror = function(error) {
+						console.error("Notification WebSocket error:", error);
+					};
+					
+					notificationWs.onmessage = function(evt) {
+						// Check if this is a notification message (prefixed with "notification:")
+						if (evt.data.startsWith("notification:")) {
+							try {
+								// Parse the notification JSON (removing the prefix)
+								const notificationData = JSON.parse(evt.data.substring(13));
+								handleNotification(notificationData);
+							} catch (e) {
+								console.error("Error parsing notification:", e);
+							}
+						}
+					};
+					
+					notificationWs.onclose = function() {
+						console.log("Disconnected from notification websocket, reconnecting...");
+						// Attempt to reconnect after 2 seconds
+						setTimeout(connectNotificationWs, 2000);
+					};
+				}
+				
+				function handleNotification(notification) {
+					// Display a toast notification
+					showToast(notification.message, notification.type === 'invite' ? 'info' : 'info');
+					
+					// If it's an invite notification, we can offer quick actions
+					if (notification.type === 'invite') {
+						// Check if we're on the invites page
+						const invitesSection = document.getElementById('invites-section');
+						if (invitesSection && !invitesSection.classList.contains('hidden')) {
+							// Refresh the invites list
+							htmx.ajax('GET', '/api/v1/user/invites/list', {target: '#invites-section', swap: 'innerHTML'});
+						} else {
+							// Add a badge/notification to the invites tab
+							const invitesTab = document.getElementById('tab-invites');
+							if (invitesTab) {
+								// Create or update the notification badge
+								let badge = invitesTab.querySelector('.badge');
+								if (!badge) {
+									badge = document.createElement('span');
+									badge.className = 'badge badge-sm badge-primary ml-1';
+									invitesTab.appendChild(badge);
+								}
+								
+								// Get current count or set to 0
+								const currentCount = parseInt(badge.textContent || '0');
+								badge.textContent = currentCount + 1;
+								
+								// Make the badge visible
+								badge.classList.remove('hidden');
+							}
+						}
+					}
+				}
+				
+				// Connect to WebSocket when page loads if user is logged in
+				if (localStorage.getItem('authToken')) {
+					connectNotificationWs();
+				}
+				
+				// Handle invite tab click - clear notification badge
+				document.getElementById('tab-invites').addEventListener('click', function() {
+					const badge = this.querySelector('.badge');
+					if (badge) {
+						badge.classList.add('hidden');
+						badge.textContent = '0';
+					}
+				});
+			</script>
 		</body>
 	</html>
 }
